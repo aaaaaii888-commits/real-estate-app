@@ -28,16 +28,21 @@
     @media print {
       @page {
         size: A4 portrait;
-        margin: 10mm 10mm;
+        margin: 8mm 10mm;
+      }
+      *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
       }
       html, body {
         background: white !important;
         color: #0f172a !important;
         padding: 0 !important;
         margin: 0 !important;
-        font-size: 10pt !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        font-size: 9.5pt !important;
+        line-height: 1.4 !important;
+        width: 100% !important;
       }
       /* ヘッダーや他ステップ、モーダル、ボタンを確実に非表示 */
       header,
@@ -55,12 +60,14 @@
         display: block !important;
         padding: 0 !important;
         margin: 0 !important;
+        width: 100% !important;
         max-width: 100% !important;
       }
       main {
         max-width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
+        width: 100% !important;
       }
       .print-page {
         box-shadow: none !important;
@@ -70,14 +77,18 @@
         width: 100% !important;
         max-width: 100% !important;
       }
-      /* 改ページ制御：行や写真カードが途中で分断されないようにする */
+      /* 改ページ制御：各セクション、テーブル行、写真カードが途中で分断されないようにする */
       .page-break-inside-avoid,
       tr,
+      thead,
+      tbody,
       table,
       .photo-card,
       #rep_photos_grid > div,
       #rep_parcels_container,
-      #rep_alerts_container > div {
+      #rep_alerts_container,
+      #rep_alerts_container > div,
+      #rep_basic_info_grid {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
