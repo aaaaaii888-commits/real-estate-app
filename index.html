@@ -1,0 +1,2757 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>不動産査定・内覧チェックシート</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    /* AI自動入力済フィールドのハイライト */
+    .ai-highlighted {
+      background-color: #f5f3ff !important;
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+      transition: all 0.3s ease;
+    }
+    /* 印刷時のスタイル定義（A4縦に完全最適化 & 余計なUI非表示） */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 10mm;
+      }
+      html, body {
+        background: white !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 10pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* ヘッダーや他ステップ、モーダル、ボタンを確実に非表示 */
+      header,
+      #step0-section,
+      #step1-section,
+      #step2-section,
+      #photoModal,
+      #aiLoadingOverlay,
+      #settingsModal,
+      .no-print {
+        display: none !important;
+      }
+      /* レポートセクションのみ表示 */
+      #step3-section {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }
+      main {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .print-page {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      /* 改ページ制御：行や写真カードが途中で分断されないようにする */
+      .page-break-inside-avoid,
+      tr,
+      table,
+      .photo-card,
+      #rep_photos_grid > div,
+      #rep_parcels_container,
+      #rep_alerts_container > div {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen pb-24">
+
+  <!-- ヘッダーバー（アプリ共通） -->
+  <header class="no-print bg-slate-900 text-white sticky top-0 z-50 shadow-md">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2 cursor-pointer" id="headerTitle">
+        <i data-lucide="clipboard-check" class="w-6 h-6 text-emerald-400"></i>
+        <span class="font-bold text-base sm:text-lg tracking-tight">内覧査定シート</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span id="saveStatus" class="text-xs text-slate-400 flex items-center gap-1">
+          <i data-lucide="cloud" class="w-3.5 h-3.5 text-slate-400"></i>
+          <span>自動保存済</span>
+        </span>
+        <button id="btnHeaderToList" class="text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1">
+          <i data-lucide="list" class="w-3.5 h-3.5"></i>
+          <span>物件一覧</span>
+        </button>
+        <button id="btnOpenSettings" class="p-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700" title="AI設定">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- メインコンテナ -->
+  <main class="max-w-2xl mx-auto p-4">
+
+    <!-- ============================================== -->
+    <!-- STEP 0: トップ画面（物件一覧 ＆ 新規査定開始） -->
+    <!-- ============================================== -->
+    <section id="step0-section" class="space-y-4">
+      
+      <!-- 新規査定開始カード -->
+      <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-lg space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold">新しい物件を査定する</h2>
+            <p class="text-xs text-slate-300 mt-0.5">現地内覧のチェックシートを作成します</p>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i data-lucide="plus-circle" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <button id="btnCreateNew" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-md shadow-emerald-900/30 flex items-center justify-center gap-2 text-sm transition">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>新規査定を開始する</span>
+        </button>
+      </div>
+
+      <!-- 査定済み物件一覧リスト -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="folder-clock" class="w-5 h-5 text-slate-600"></i>
+            <h3 class="text-sm font-bold text-slate-800">査定済み物件一覧</h3>
+            <span id="propertyCountBadge" class="text-[11px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">0件</span>
+          </div>
+          <!-- データバックアップ（エクスポート / インポート） -->
+          <div class="flex items-center gap-1.5">
+            <button id="btnExportData" type="button" class="text-xs bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-300 font-semibold flex items-center gap-1 shadow-sm transition" title="全査定データをJSONファイルとしてダウンロード保存">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-slate-600"></i>
+              <span>バックアップ保存</span>
+            </button>
+            <button id="btnTriggerImport" type="button" class="text-xs bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-300 font-semibold flex items-center gap-1 shadow-sm transition" title="JSONファイルから査定データを復元">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-slate-600"></i>
+              <span>復元</span>
+            </button>
+            <input type="file" id="importFileInput" accept=".json,application/json" class="hidden">
+          </div>
+        </div>
+
+        <!-- 物件一覧コンテナ -->
+        <div id="propertyListContainer" class="space-y-3">
+          <!-- JSで動的に物件カードを生成 -->
+        </div>
+
+        <!-- 物件が0件の場合のプレースホルダー -->
+        <div id="emptyListPlaceholder" class="hidden text-center py-12 px-4 bg-white rounded-2xl border border-dashed border-slate-300 space-y-2">
+          <i data-lucide="clipboard-list" class="w-10 h-10 text-slate-400 mx-auto"></i>
+          <p class="text-sm font-semibold text-slate-600">査定履歴はまだありません</p>
+          <p class="text-xs text-slate-400">「新規査定を開始する」ボタンから最初の物件を記録してみましょう。</p>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ============================================== -->
+    <!-- STEP 1: 物件種別選択 & 登記簿・基本情報入力 -->
+    <!-- ============================================== -->
+    <section id="step1-section" class="hidden space-y-4">
+      
+      <!-- 一覧に戻るボタン -->
+      <div class="flex items-center justify-between">
+        <button id="btnBackToStep0" class="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1 font-medium px-2 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>物件一覧に戻る</span>
+        </button>
+      </div>
+
+      <!-- 登記簿AI自動読取カード（土地 / 建物 分割対応） -->
+      <div class="bg-gradient-to-r from-violet-900 via-indigo-950 to-slate-900 rounded-2xl p-4 text-white shadow-md border border-indigo-500/30 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="p-2 rounded-xl bg-indigo-500/30 text-amber-300">
+              <i data-lucide="sparkles" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-1">
+                <span>登記簿AI自動読取</span>
+                <span class="text-[10px] bg-amber-400 text-slate-950 font-extrabold px-1.5 py-0.2 rounded">Gemini AI</span>
+              </h3>
+              <p class="text-[11px] text-indigo-200 mt-0.5">謄本PDFや写真から下線（抹消事項）を除外し、有効権利・表題部を自動入力</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 隠しファイル入力要素 -->
+        <input type="file" id="registryLandFileInput" accept="application/pdf,image/*" class="hidden">
+        <input type="file" id="registryBuildingFileInput" accept="application/pdf,image/*" class="hidden">
+        <input type="file" id="registryAllFileInput" accept="application/pdf,image/*" class="hidden">
+
+        <!-- 読取ボタン群（種別や用途に合わせて選択可能） -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" id="aiUploadButtonsWrapper">
+          <button id="btnUploadLandRegistry" type="button" class="py-2.5 px-3 bg-indigo-700/80 hover:bg-indigo-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold border border-indigo-400/30 shadow flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="map" class="w-4 h-4 text-emerald-300"></i>
+            <span>🌲 土地の登記簿を読取</span>
+          </button>
+          <button id="btnUploadBuildingRegistry" type="button" class="py-2.5 px-3 bg-indigo-700/80 hover:bg-indigo-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold border border-indigo-400/30 shadow flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="home" class="w-4 h-4 text-amber-300"></i>
+            <span>🏠 建物の登記簿を読取</span>
+          </button>
+        </div>
+        <button id="btnUploadAllRegistry" type="button" class="w-full py-2 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[11px] font-semibold border border-slate-700 flex items-center justify-center gap-1 transition">
+          <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-300"></i>
+          <span>📄 土地・建物をまとめて一括読取（区分マンション等）</span>
+        </button>
+      </div>
+
+      <!-- 物件種別選択 -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">STEP 1</span>
+          <h2 class="text-lg font-bold text-slate-800">物件種別の選択</h2>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">査定を行う物件の種別を選んでください。項目が最適化されます。</p>
+        
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4" id="propertyTypeSelector">
+          <button type="button" data-type="mansion" class="type-btn relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition">
+            <span class="check-badge hidden absolute top-1.5 right-1.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+              <i data-lucide="check" class="w-3 h-3"></i>
+            </span>
+            <i data-lucide="building-2" class="w-7 h-7 mb-1.5"></i>
+            <span class="text-sm font-bold">マンション</span>
+          </button>
+          <button type="button" data-type="house" class="type-btn relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition">
+            <span class="check-badge hidden absolute top-1.5 right-1.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+              <i data-lucide="check" class="w-3 h-3"></i>
+            </span>
+            <i data-lucide="home" class="w-7 h-7 mb-1.5"></i>
+            <span class="text-sm font-bold">一戸建て</span>
+          </button>
+          <button type="button" data-type="land" class="type-btn relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition">
+            <span class="check-badge hidden absolute top-1.5 right-1.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+              <i data-lucide="check" class="w-3 h-3"></i>
+            </span>
+            <i data-lucide="map" class="w-7 h-7 mb-1.5"></i>
+            <span class="text-sm font-bold">土地</span>
+          </button>
+          <button type="button" data-type="building" class="type-btn relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition">
+            <span class="check-badge hidden absolute top-1.5 right-1.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+              <i data-lucide="check" class="w-3 h-3"></i>
+            </span>
+            <i data-lucide="building" class="w-7 h-7 mb-1.5"></i>
+            <span class="text-sm font-bold">一棟アパート</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 登記簿（表題部）＆ 現況基本情報フォーム（種別に応じて動的切り替え） -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="file-text" class="w-5 h-5 text-emerald-600"></i>
+            <h2 class="text-base font-bold text-slate-800">物件基本情報・登記簿表題部</h2>
+          </div>
+          <span id="basicInfoTypeBadge" class="text-xs bg-slate-900 text-white font-bold px-2 py-0.5 rounded">マンション用項目</span>
+        </div>
+
+        <!-- 種別ごとに動的に差し替わる入力フィールド -->
+        <div id="dynamicBasicInfoFields" class="space-y-3.5"></div>
+      </div>
+
+      <!-- 次へボタン -->
+      <button id="btnToStep2" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 text-base transition">
+        <span>現地チェックシートを開始</span>
+        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+      </button>
+    </section>
+
+
+    <!-- ============================================== -->
+    <!-- STEP 2: 内覧チェックシート入力（スマホ最適化UI） -->
+    <!-- ============================================== -->
+    <section id="step2-section" class="hidden space-y-4">
+      
+      <!-- ナビゲーションバー & 進捗サマリー -->
+      <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between">
+        <button id="btnBackToStep1" class="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1 font-medium px-2 py-1.5 rounded-lg bg-slate-100">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>基本情報へ</span>
+        </button>
+        <div class="text-xs text-slate-500 font-semibold" id="checkProgressText">
+          チェック済: 0 / 0項目
+        </div>
+        <button id="btnToStep3" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow-sm">
+          <span>報告書へ</span>
+          <i data-lucide="file-check" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- カテゴリ切り替えタブ -->
+      <div class="flex overflow-x-auto space-x-2 py-1 scrollbar-none" id="categoryTabs">
+        <!-- JSでタブを動的に生成 -->
+      </div>
+
+      <!-- チェック項目コンテナ（JSで動的描画） -->
+      <div id="checkItemsContainer" class="space-y-3.5">
+        <!-- 項目カード群 -->
+      </div>
+
+      <!-- フッター移動ボタン -->
+      <div class="pt-2">
+        <button id="btnToStep3Footer" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-md flex items-center justify-center gap-2 text-base transition">
+          <i data-lucide="file-check" class="w-5 h-5 text-emerald-400"></i>
+          <span>内覧完了・査定報告書を確認</span>
+        </button>
+      </div>
+    </section>
+
+
+    <!-- ============================================== -->
+    <!-- STEP 3: 査定内覧報告書（プレビュー & PDF出力） -->
+    <!-- ============================================== -->
+    <section id="step3-section" class="hidden space-y-4">
+      
+      <!-- アクションバー（画面用・印刷時非表示） -->
+      <div class="no-print bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <button id="btnBackToStep2" class="text-xs text-slate-700 hover:text-slate-900 flex items-center gap-1 font-medium px-3 py-2 rounded-lg bg-slate-100">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span>チェックに戻る</span>
+          </button>
+          <button id="btnReportToList" class="text-xs text-slate-700 hover:text-slate-900 flex items-center gap-1 font-medium px-3 py-2 rounded-lg bg-slate-100">
+            <i data-lucide="list" class="w-4 h-4"></i>
+            <span>物件一覧へ</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnPrintReport" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-lg flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>報告書を印刷 / PDF保存</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 印刷対象プレビューカード（A4用紙イメージ） -->
+      <div id="reportSheet" class="print-page bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+        
+        <!-- レポートヘッダー -->
+        <div class="border-b-2 border-slate-800 pb-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-xs uppercase tracking-wider font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded">Real Estate Assessment</span>
+              <h1 class="text-2xl font-extrabold text-slate-900 mt-1">不動産査定・現地内覧調査報告書</h1>
+            </div>
+            <div class="text-right text-xs text-slate-500 space-y-0.5">
+              <div>調査日: <span id="rep_date" class="font-bold text-slate-700">-</span></div>
+              <div>調査担当: <span id="rep_inspector" class="font-bold text-slate-700">-</span></div>
+            </div>
+          </div>
+          <div class="mt-3 text-lg font-bold text-slate-800 flex items-center gap-2">
+            <span id="rep_type_badge" class="text-xs bg-slate-800 text-white px-2 py-0.5 rounded font-medium">マンション</span>
+            <span id="rep_name">物件名未設定</span>
+          </div>
+          <div class="text-xs text-slate-600 mt-1" id="rep_address">所在地: -</div>
+        </div>
+
+        <!-- 登記簿・基本現況サマリー表（種別に応じて動的生成） -->
+        <div class="page-break-inside-avoid">
+          <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <i data-lucide="info" class="w-3.5 h-3.5 text-emerald-600"></i>
+            物件基本情報・登記簿表題部概要
+          </h2>
+          <div id="rep_basic_info_grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <!-- JSで種別ごとの項目と値を表示 -->
+          </div>
+          <!-- 対象土地（筆）の内訳明細表 -->
+          <div id="rep_parcels_container" class="hidden mt-3"></div>
+        </div>
+
+        <!-- 特記事項・要修繕ピックアップアラート -->
+        <div id="rep_alerts_container" class="page-break-inside-avoid">
+          <!-- 要修繕や告知事項・越境がある場合にハイライト表示 -->
+        </div>
+
+        <!-- カテゴリ別チェック結果詳細 -->
+        <div id="rep_details_container" class="space-y-5">
+          <!-- JSで動的生成 -->
+        </div>
+
+        <!-- 添付写真ギャラリー -->
+        <div id="rep_photos_container" class="page-break-inside-avoid space-y-3 pt-4 border-t border-slate-200">
+          <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+            <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-600"></i>
+            現地確認写真一覧
+          </h2>
+          <div id="rep_photos_grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <!-- 写真が挿入される -->
+          </div>
+        </div>
+
+        <!-- フッター署名欄 -->
+        <div class="page-break-inside-avoid pt-6 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-end">
+          <div>
+            ※ 本書面は現地内覧調査時点での目視確認に基づく査定用チェック報告書です。<br>
+            隠れた瑕疵や構造耐力上の問題等を保証するものではありません。
+          </div>
+          <div class="text-right">
+            査定調査責任者: _________________ 印
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 拡大写真モーダル -->
+  <div id="photoModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <div class="relative max-w-2xl w-full bg-slate-900 rounded-xl overflow-hidden p-2">
+      <button id="btnCloseModal" class="absolute top-4 right-4 text-white bg-slate-800/80 p-2 rounded-full hover:bg-slate-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <img id="modalImg" src="" alt="拡大写真" class="w-full max-h-[80vh] object-contain rounded-lg">
+      <div id="modalCaption" class="text-center text-xs text-slate-300 mt-2 py-1"></div>
+    </div>
+  </div>
+
+  <!-- AI解析中ローディングオーバーレイ -->
+  <div id="aiLoadingOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <div class="w-16 h-16 mx-auto rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 animate-pulse">
+        <i data-lucide="sparkles" class="w-8 h-8 text-indigo-600"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">登記簿謄本をAI解析中...</h3>
+        <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">表題部、甲区（所有者）、乙区（抵当権）を読み取っています。<br>数秒お待ちください。</p>
+      </div>
+      <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-indigo-600 h-full w-2/3 animate-pulse"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APIキー設定モーダル -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="key" class="w-5 h-5 text-indigo-600"></i>
+          <h3 class="text-base font-bold text-slate-800">Gemini APIキー設定（AI自動読取）</h3>
+        </div>
+        <button id="btnCloseSettings" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-600 space-y-2">
+        <p>登記簿の自動読取機能を使うには、Googleの無料 <strong>Gemini APIキー</strong> が必要です。</p>
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+          <span class="font-bold text-slate-800">🔑 無料キーの取得手順（1分・完全無料）:</span>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-600 font-bold underline hover:text-indigo-800 flex items-center gap-1 mt-1">
+            <span>Google AI Studio で無料APIキーを取得する</span>
+            <i data-lucide="external-link" class="w-3.5 h-3.5 inline"></i>
+          </a>
+          <span class="text-[10px] text-slate-400 block mt-0.5">※Googleアカウントでログインし「Create API key」を押すだけで発行されます。</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Gemini API Key</label>
+        <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">使用するGeminiモデル</label>
+        <select id="geminiModelSelect" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="auto">自動選択（利用可能な最新Flashモデルを自動選定・推奨）</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash（最新・超高速・推奨）</option>
+          <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+          <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
+          <option value="custom">手動指定（下に入力）</option>
+        </select>
+      </div>
+
+      <div id="customModelWrapper" class="hidden">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">手動モデル名</label>
+        <input type="text" id="geminiCustomModelInput" placeholder="例：gemini-2.5-flash" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button id="btnSaveApiKey" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition">
+          保存する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================================
+    // 1. チェック項目のマスターデータ定義（評価4択: 良好・確認・注意・該当なし）
+    // ========================================================
+    const DEFAULT_CHECK_OPTIONS = ["良好", "確認", "注意", "該当なし"];
+
+    const CHECKLIST_MASTER = {
+      special: [
+        { id: "sp_reform", title: "リフォーム・修繕履歴", desc: "過去の工事履歴、時期、施工箇所の有無", placeholder: "特記メモ（例：2019年外壁・屋根塗装、2021年給湯器交換など）" },
+        { id: "sp_kokuchi", title: "告知事項の有無", desc: "心理的瑕疵、雨漏り、シロアリ、事件事故等", placeholder: "特記メモ（例：告知なし / 過去の漏水補修歴、自然死・事件事故の有無等）" },
+        { id: "sp_ekkyo", title: "越境の有無", desc: "塀、樹木、雨樋、電線等の敷地内外への越境", placeholder: "特記メモ（例：東側隣地の樹木枝が約30cm越境、越境覚書なし等）" },
+        { id: "sp_heat_source", title: "暖房・給湯の熱源", desc: "都市ガス / プロパンガス / オール電化 / 灯油", placeholder: "特記メモ（例：都市ガス本管接続、LDK温水式床暖房あり等）" },
+        { id: "sp_aircon", title: "暖房機器・エアコン", desc: "残置エアコンの有無、稼働状況、専用コンセント", placeholder: "特記メモ（例：LDKに2021年製エアコン残置・動作良好、洋室2部屋未設置等）" },
+        { id: "sp_residual", title: "残置物・不用品", desc: "家具、荷物、不用品の残置状況と撤去費用の見込み", placeholder: "特記メモ（例：タンス3棹・冷蔵庫等残置、引渡前売主にて撤去予定等）" }
+      ],
+      mansion: [
+        {
+          category: "共用部・管理体制",
+          icon: "building-2",
+          items: [
+            { id: "m_entrance", title: "エントランス・集合ポスト", desc: "オートロック、清掃状況、チラシ散乱等の管理感", placeholder: "特記メモ（例：オートロック・宅配BOX完備、集合ポストチラシなし清掃良好）" },
+            { id: "m_trash", title: "ゴミ置き場・駐輪駐車場", desc: "分別ルール遵守度、整頓状態、放置自転車", placeholder: "特記メモ（例：24時間ゴミ出し可、敷地内駐輪場空きあり・整理整頓良好）" },
+            { id: "m_elevator", title: "エレベーター・共用廊下", desc: "稼働状況、異音、外廊下の状態", placeholder: "特記メモ（例：9人乗り1基、直近定期点検済、内装マット汚れ少々）" }
+          ]
+        },
+        {
+          category: "室内・内装",
+          icon: "layout",
+          items: [
+            { id: "in_wallpaper", title: "壁紙・クロスの状態", desc: "タバコヤニ、黄ばみ、破れ、ペット傷、剥がれ", placeholder: "特記メモ（例：リビング南面クロス剥がれ、全体的に日焼け黄ばみ要張替）" },
+            { id: "in_floor", title: "フローリング・床材", desc: "きしみ、沈み込み、傷、日焼け劣化", placeholder: "特記メモ（例：ダイニングテーブル下にキャスター擦り傷、廊下歩行時きしみ少々）" },
+            { id: "in_fittings", title: "建具・ドア・サッシの建て付け", desc: "開閉のスムーズさ、鍵の施錠、網戸の破れ", placeholder: "特記メモ（例：和室引き戸閉まり時引っかかり、リビングサッシ開閉スムーズ）" },
+            { id: "in_odor", title: "臭気・カビ・結露痕", desc: "カビ臭、ペット臭、サッシ周囲の結露腐食", placeholder: "特記メモ（例：タバコ・ペット臭なし、北側窓サッシ枠に結露跡あり）" },
+            { id: "in_view", title: "日当たり・眺望・通風", desc: "バルコニーからの日照、開放感、前棟の圧迫感", placeholder: "特記メモ（例：南向き日当たり・通風良好、正面に視界を遮る建物なし）" }
+          ]
+        },
+        {
+          category: "水回り設備",
+          icon: "droplet",
+          items: [
+            { id: "w_kitchen", title: "キッチン・換気扇", desc: "油汚れ、コンロ種別、水栓のグラつき・水漏れ", placeholder: "特記メモ（例：3口ガスコンロ・食洗機付、シングルレバー水栓グラつき要補修）" },
+            { id: "w_bath", title: "浴室（ユニットバス）", desc: "カビ、水垢、追焚機能、浴室乾燥機の有無", placeholder: "特記メモ（例：ユニットバス1616、浴室乾燥・追焚付、鏡にウロコ水垢あり）" },
+            { id: "w_washroom", title: "洗面化粧台・洗濯パン", desc: "ボウルのひび割れ、排水トラップの水漏れ", placeholder: "特記メモ（例：三面鏡シャンプードレッサー、洗面ボウルひび割れなし綺麗）" },
+            { id: "w_toilet", title: "トイレ設備", desc: "温水洗浄便座の稼働、タンク給水状態、黄ばみ", placeholder: "特記メモ（例：温水洗浄便座動作確認済、タンク給水手洗い部水垢汚れ少々）" },
+            { id: "w_water_heater", title: "給湯器の状態・年式", desc: "製造年シールの確認、交換推奨時期の目安", placeholder: "特記メモ（例：2018年製ノーリツ24号オート、給湯・追焚動作良好）" }
+          ]
+        },
+        {
+          category: "周辺環境・その他",
+          icon: "map-pin",
+          items: [
+            { id: "env_noise", title: "騒音・周辺環境", desc: "幹線道路、線路、隣戸からの騒音、嫌悪施設", placeholder: "特記メモ（例：住宅街で昼夜静穏、近隣に嫌悪施設なし、隣戸生活音なし）" }
+          ]
+        }
+      ],
+      house: [
+        {
+          category: "外観・敷地・接道",
+          icon: "home",
+          items: [
+            { id: "h_wall", title: "外壁の状態", desc: "チョーキング（粉吹き）、ひび割れ（クラック）、シーリング劣化", placeholder: "特記メモ（例：サイディング壁チョーキング大、目地シーリング硬化ひび割れ）" },
+            { id: "h_roof", title: "屋根・雨樋", desc: "瓦のズレ、雨樋の破損・詰まり、軒裏の雨染み", placeholder: "特記メモ（例：コロニアル屋根コケ色褪せ、雨樋落ち葉詰まり少々、軒天染みなし）" },
+            { id: "h_boundary", title: "境界標・フェンス", desc: "四隅の境界標（鋲・コンクリート杭）の確認", placeholder: "特記メモ（例：北側・西側のコンクリート杭確認済、南東鋲は土砂埋没要掘出）" },
+            { id: "h_road", title: "接道状況・幅員", desc: "道路幅（4m以上か、セットバック要否）、高低差", placeholder: "特記メモ（例：公道北側幅員4.5m接道、セットバック不要、車の車庫入れ容易）" }
+          ]
+        },
+        {
+          category: "室内・構造状態",
+          icon: "layout",
+          items: [
+            { id: "in_wallpaper", title: "壁紙・クロスの状態", desc: "タバコヤニ、汚れ、破れ、剥がれ", placeholder: "特記メモ（例：玄関・階段壁紙に汚れ傷、2階各室クロス比較的綺麗）" },
+            { id: "in_floor", title: "フローリング・床の傾き", desc: "ビー玉転がり等の傾き、きしみ、沈み込み", placeholder: "特記メモ（例：リビング床傾きなし、洗面所前フローリング踏むと若干沈みあり）" },
+            { id: "in_leak", title: "雨漏り痕・天井の染み", desc: "天井、サッシ周り、小屋裏等の雨漏りチェック", placeholder: "特記メモ（例：2階和室天井隅に古い雨染み跡あり・現状乾燥、小屋裏要確認）" },
+            { id: "in_fittings", title: "建具・雨戸・サッシ", desc: "建て付けの狂い（傾きによる開閉不良の有無）", placeholder: "特記メモ（例：和室障子・襖開閉良好、雨戸戸袋の引き出しスムーズ）" }
+          ]
+        },
+        {
+          category: "水回り設備",
+          icon: "droplet",
+          items: [
+            { id: "w_kitchen", title: "キッチン設備", desc: "水漏れ痕、シンク下の湿気・腐食", placeholder: "特記メモ（例：システムキッチンI型2550、シンク下配管からの水漏れ跡なし）" },
+            { id: "w_bath", title: "浴室設備", desc: "在来浴室（タイルひび）かユニットバスか、腐食", placeholder: "特記メモ（例：在来タイル風呂・床タイルひび割れあり、ユニットバス推奨）" },
+            { id: "w_washroom", title: "洗面化粧台・洗濯置場", desc: "水漏れ、床の腐食やフカフカ感", placeholder: "特記メモ（例：750幅洗面台、洗濯機パンあり、排水トラップ正常）" },
+            { id: "w_toilet", title: "トイレ設備", desc: "温水洗浄便座、床の黒ずみ・劣化", placeholder: "特記メモ（例：1階・2階に各1箇所、便座暖房良好、換気扇異音なし）" },
+            { id: "w_water_heater", title: "給湯器の状態・年式", desc: "屋外給湯器の年式、配管保護材の劣化", placeholder: "特記メモ（例：屋外壁掛型2012年製・設置12年経過のため交換推奨）" }
+          ]
+        },
+        {
+          category: "周辺環境・その他",
+          icon: "map-pin",
+          items: [
+            { id: "env_sun", title: "日当たり・通風・隣地間隔", desc: "隣家との間隔、圧迫感、日照状況", placeholder: "特記メモ（例：南側庭あり日照良好、東側隣家との離隔1.5mあり開放感良好）" },
+            { id: "env_noise", title: "周辺の騒音・臭気・地盤", desc: "前面道路の交通量、匂い、水害履歴の懸念", placeholder: "特記メモ（例：前面道路抜け道にならず交通量僅少、静かな住環境）" }
+          ]
+        }
+      ],
+      land: [
+        {
+          category: "古家解体・更地化・地中状況",
+          icon: "hammer",
+          items: [
+            { id: "l_demolition", title: "古家・上物の解体要否", desc: "更地か古家付きか、解体費用の見積もり規模", placeholder: "特記メモ（例：木造2階建延約30坪、解体見積約150〜200万、アスベスト事前調査要否）" },
+            { id: "l_access", title: "解体・重機進入の作業性", desc: "重機・ダンプの進入路、道路幅員、足場設置", placeholder: "特記メモ（例：前面道路幅員6mで大型ダンプ横付け可能、電線養生や足場設置容易）" },
+            { id: "l_underground", title: "地中埋設物・古井戸・基礎", desc: "古井戸、旧浄化槽、ガラ・コンクリ基礎の残存", placeholder: "特記メモ（例：敷地奥に古井戸ありお祓い埋戻し要、旧浄化槽撤去費用要相談）" }
+          ]
+        },
+        {
+          category: "敷地・境界・現況",
+          icon: "map",
+          items: [
+            { id: "l_boundary", title: "境界標の現況", desc: "すべての境界標（杭・鋲）が目視確認できるか", placeholder: "特記メモ（例：四隅の境界標確認済、境界確定測量図あり・隣地立会不要見込み）" },
+            { id: "l_level", title: "高低差・擁壁の状態", desc: "道路や隣地との高低差、古い擁壁のクラック", placeholder: "特記メモ（例：前面道路とほぼ平坦、北側隣地と約50cm高低差・土留めブロック健全）" },
+            { id: "l_obstacle", title: "地上の障害物・樹木", desc: "残置物置、巨木、電柱・支線の有無", placeholder: "特記メモ（例：敷地内に撤去予定の木造古倉庫1棟、巨木・古井戸・残置基礎なし）" },
+            { id: "l_status", title: "更地状態・土壌環境", desc: "草刈りの必要性、ガラ（産業廃棄物）の散乱", placeholder: "特記メモ（例：定期的に草刈りされており良好、建築廃材や廃棄物埋設の懸念なし）" }
+          ]
+        },
+        {
+          category: "道路・インフラ引込",
+          icon: "truck",
+          items: [
+            { id: "l_road_width", title: "前面道路の幅員・舗装", desc: "4m以上の公道か、位置指定道路か、側溝の有無", placeholder: "特記メモ（例：公道幅員6.0m・アスファルト舗装良好、側溝整備済、大型車進入可）" },
+            { id: "l_water_pipe", title: "上水道・下水道の引込", desc: "敷地内引込の有無、前面道路の本管埋設状況", placeholder: "特記メモ（例：敷地内水道管20mm引込済、前面道路に本管あり、下水直結可）" },
+            { id: "l_gas_pipe", title: "ガス本管の埋設", desc: "都市ガス引込可能か、プロパン個別設置エリアか", placeholder: "特記メモ（例：都市ガス本管埋設あり・敷地内引込工事必要、プロパン供給も可）" }
+          ]
+        },
+        {
+          category: "周辺環境・法規制",
+          icon: "map-pin",
+          items: [
+            { id: "l_sunlight", title: "日照・周辺建物の状況", desc: "南側の隣家状況、将来の建築による日陰リスク", placeholder: "特記メモ（例：南側道路のため将来にわたり日当たり確保可、眺望良好）" },
+            { id: "env_noise", title: "騒音・悪臭・嫌悪施設", desc: "近隣工場の音、高圧線、線路、傾斜地崩壊リスク", placeholder: "特記メモ（例：高圧線・ゴミ集積所隣接なし、土砂災害警戒区域等の指定外）" }
+          ]
+        }
+      ],
+      building: [
+        {
+          category: "建物外観・構造",
+          icon: "building",
+          items: [
+            { id: "b_wall", title: "外壁・シーリング", desc: "チョーキング、クラック、外装大規模修繕歴の必要度", placeholder: "特記メモ（例：窯業系サイディング、前回外装塗装から約8年経過・軽微な汚れ程度）" },
+            { id: "b_roof", title: "屋根・屋上防水", desc: "シート防水・ウレタン防水の膨れ、コケ、排水溝", placeholder: "特記メモ（例：スレート屋根・棟板金浮きなし、雨樋外れなし排水良好）" },
+            { id: "b_corridor", title: "共用階段・外廊下", desc: "鉄骨階段のサビ、防滑シートのめくれ、長尺シート", placeholder: "特記メモ（例：鉄骨共用階段に一部サビ浮き要ケレン塗装、2階通路防滑シート破れなし）" }
+          ]
+        },
+        {
+          category: "共用設備・管理",
+          icon: "wrench",
+          items: [
+            { id: "b_meter", title: "水道・電気メーター盤", desc: "各戸メーターの設置状態、共用灯の点灯", placeholder: "特記メモ（例：各戸電気・ガス・水道メーター集中配置、共用部タイマー照明点灯確認）" },
+            { id: "b_trash", title: "ゴミステーション・駐輪場", desc: "ネット・ボックスの設置、放置物、管理看板", placeholder: "特記メモ（例：アパート専用ゴミストッカー設置済、駐輪場放置自転車2台あり要撤去）" },
+            { id: "b_fire", title: "消防設備・消火器", desc: "消火器の期限、避難器具・避難経路の確保", placeholder: "特記メモ（例：共用部消火器有効期限内、避難ハッチ動作確認・避難経路確保）" }
+          ]
+        },
+        {
+          category: "代表専有部（空室等）",
+          icon: "layout",
+          items: [
+            { id: "in_wallpaper", title: "室内の内装状態", desc: "原状回復の必要度、床・壁の傷み", placeholder: "特記メモ（例：102号室空室確認・クロス張替済で美室、クリーニングのみで入居可）" },
+            { id: "w_unitbath", title: "3点ユニット / 水回り", desc: "3点式ユニットかバストイレ別か、設備の古さ", placeholder: "特記メモ（例：2点式ユニットバス、水栓シングルレバー化済、換気扇稼働良好）" },
+            { id: "sp_aircon", title: "エアコン・換気扇", desc: "入居付に直結する設備の稼働と型式", placeholder: "特記メモ（例：全戸エアコン設置済・2020年以降製が中心、稼働問題なし）" }
+          ]
+        }
+      ]
+    };
+
+    // ========================================================
+    // 2. データベース管理（IndexedDB + LocalStorage互換）
+    // ========================================================
+    const STORAGE_KEY_V2 = "real_estate_app_properties_v2";
+    const OLD_STORAGE_KEY = "real_estate_assessment_app_data_v1";
+
+    const IDB_NAME = "RealEstateAssessmentAppDB";
+    const IDB_VERSION = 1;
+    const IDB_STORE = "appData";
+    const IDB_KEY = "currentAppDB";
+
+    function openIDB() {
+      return new Promise((resolve) => {
+        if (!window.indexedDB) {
+          resolve(null);
+          return;
+        }
+        try {
+          const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(IDB_STORE)) {
+              db.createObjectStore(IDB_STORE);
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+
+    async function loadFromIDB() {
+      const db = await openIDB();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(IDB_STORE, "readonly");
+          const store = tx.objectStore(IDB_STORE);
+          const req = store.get(IDB_KEY);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+
+    async function saveToIDB(data) {
+      const db = await openIDB();
+      if (!db) return false;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(IDB_STORE, "readwrite");
+          const store = tx.objectStore(IDB_STORE);
+          const req = store.put(data, IDB_KEY);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    }
+
+    let appDB = {
+      activeId: null,
+      properties: [] // { id, updatedAt, propertyType, info, checks, currentTab }
+    };
+
+    function generateId() {
+      return "prop_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    }
+
+    function createDefaultProperty() {
+      return {
+        id: generateId(),
+        updatedAt: new Date().toISOString(),
+        propertyType: "mansion",
+        info: {
+          name: "",
+          address: "",
+          parcels: [
+            { chiban: "", chimoku: "宅地", sqm: "", share: "1/1", memo: "" }
+          ],
+          kaoku: "",
+          chimoku: "",
+          structure: "",
+          area: "",
+          built_year: "",
+          usage: "所有者居住中",
+          price: "",
+          date: new Date().toISOString().split("T")[0],
+          inspector: ""
+        },
+        checks: {},
+        currentTab: 0
+      };
+    }
+
+    // ステータス正規化ヘルパー（旧記号・旧文言との完全互換）
+    function normalizeStatus(status) {
+      if (!status || typeof status !== "string") return "";
+      const s = status.trim();
+      if (s === "良好" || s.startsWith("◎") || s.includes("良好") || s.includes("完備") || s.includes("美品") || s.includes("改修済") || s.includes("告知なし") || s.includes("越境なし") || s.includes("整頓") || s.includes("稼働良好") || s.includes("清掃管理") || s.includes("整地済") || s.includes("解体不要") || s.includes("引込済") || s.includes("引込可")) {
+        return "良好";
+      }
+      if (s === "注意" || s.startsWith("△") || s.includes("注意") || s.includes("要") || s.includes("あり") || s.includes("劣化") || s.includes("亀裂") || s.includes("破損") || s.includes("故障") || s.includes("悪臭") || s.includes("不法") || s.includes("亡失") || s.includes("不可") || s.includes("大") || s.includes("高額")) {
+        return "注意";
+      }
+      if (s === "確認" || s.startsWith("◯") || s.includes("確認") || s.includes("普通") || s.includes("年相応") || s.includes("一部") || s.includes("少量") || s.includes("少々") || s.includes("使用感") || s.includes("プロパン") || s.includes("オール電化")) {
+        return "確認";
+      }
+      if (s === "該当なし" || s === "なし" || s === "対象外") {
+        return "該当なし";
+      }
+      return s;
+    }
+
+    // 報告書バッジ用クラス（良好/確認/注意/該当なし で厳密マッピング）
+    function getStatusBadgeClass(status) {
+      const norm = normalizeStatus(status);
+      if (norm === "良好") {
+        return "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold";
+      } else if (norm === "確認") {
+        return "bg-amber-100 text-amber-900 border-amber-300 font-bold";
+      } else if (norm === "注意") {
+        return "bg-rose-100 text-rose-900 border-rose-300 font-bold";
+      } else if (norm === "該当なし") {
+        return "bg-slate-100 text-slate-600 border-slate-300";
+      }
+      return "bg-slate-100 text-slate-400 border-slate-200";
+    }
+
+    function migrateChecksToNewStatus() {
+      let changed = false;
+      appDB.properties.forEach(prop => {
+        if (!prop.checks) prop.checks = {};
+        for (const [key, val] of Object.entries(prop.checks)) {
+          if (val && val.status) {
+            const normalized = normalizeStatus(val.status);
+            if (normalized !== val.status) {
+              val.status = normalized;
+              changed = true;
+            }
+          }
+        }
+      });
+      return changed;
+    }
+
+    // データの読み込み（IndexedDB優先、LocalStorageからの自動移行）
+    async function loadDB() {
+      try {
+        // 1. まずIndexedDBを試行
+        const idbData = await loadFromIDB();
+        if (idbData && Array.isArray(idbData.properties)) {
+          appDB = idbData;
+        } else {
+          // 2. LocalStorageから読取
+          const saved = localStorage.getItem(STORAGE_KEY_V2);
+          if (saved) {
+            appDB = JSON.parse(saved);
+          } else {
+            const oldSaved = localStorage.getItem(OLD_STORAGE_KEY);
+            if (oldSaved) {
+              const oldData = JSON.parse(oldSaved);
+              const migrated = {
+                id: generateId(),
+                updatedAt: new Date().toISOString(),
+                propertyType: oldData.propertyType || "mansion",
+                info: oldData.info || {},
+                checks: oldData.checks || {},
+                currentTab: oldData.currentTab || 0
+              };
+              appDB.properties.push(migrated);
+              appDB.activeId = migrated.id;
+            }
+          }
+          // IndexedDBへ初回保存
+          await saveToIDB(appDB);
+        }
+
+        // 既存データのステータス（「◎」「◯」「△」等）を自動移行
+        if (migrateChecksToNewStatus()) {
+          saveDB();
+        }
+
+      } catch (e) {
+        console.error("DB読み込み失敗", e);
+      }
+    }
+
+    function saveDB() {
+      // 1. IndexedDBに保存（非同期）
+      saveToIDB(appDB).catch(e => console.error("IDB保存エラー:", e));
+
+      // 2. LocalStorageにもバックアップ（容量上限超過時は安全に無視）
+      try {
+        localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(appDB));
+      } catch (e) {
+        console.warn("LocalStorage上限のためIndexedDBに保存されました。");
+      }
+
+      // 3. UIステータス更新
+      const statusEl = document.getElementById("saveStatus");
+      if (statusEl) {
+        statusEl.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i><span class="text-emerald-400">保存済</span>';
+        lucide.createIcons();
+        clearTimeout(statusEl._timer);
+        statusEl._timer = setTimeout(() => {
+          statusEl.innerHTML = '<i data-lucide="cloud" class="w-3.5 h-3.5 text-slate-400"></i><span>自動保存済</span>';
+          lucide.createIcons();
+        }, 1200);
+      }
+    }
+
+    function getActiveProperty() {
+      if (!appDB.activeId) return null;
+      return appDB.properties.find(p => p.id === appDB.activeId) || null;
+    }
+
+    // ========================================================
+    // JSONデータのエクスポート / インポート（バックアップ復元）
+    // ========================================================
+    function exportDataAsJSON() {
+      try {
+        const dataStr = JSON.stringify(appDB, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const now = new Date();
+        const ymd = now.toISOString().slice(0, 10).replace(/-/g, "");
+        const hm = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `real_estate_assessment_backup_${ymd}_${hm}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert("エクスポート中にエラーが発生しました: " + e.message);
+      }
+    }
+
+    function importDataFromJSON(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed || !Array.isArray(parsed.properties)) {
+            throw new Error("有効な査定データJSONではありません（properties配列が見つかりません）。");
+          }
+          
+          const count = parsed.properties.length;
+          const merge = confirm(`バックアップファイルから ${count}件 の査定物件データが見つかりました。\n\n【OK】既存データに追加（マージ）する\n【キャンセル】既存データをすべて上書きして置き換える`);
+
+          if (merge) {
+            const existingIds = new Set(appDB.properties.map(p => p.id));
+            let addedCount = 0;
+            parsed.properties.forEach(p => {
+              if (!existingIds.has(p.id)) {
+                appDB.properties.push(p);
+                addedCount++;
+              } else {
+                p.id = generateId();
+                appDB.properties.push(p);
+                addedCount++;
+              }
+            });
+            if (parsed.activeId && !appDB.activeId) appDB.activeId = parsed.activeId;
+            alert(`✅ ${addedCount}件 の物件データを正常に追加しました！`);
+          } else {
+            if (!confirm("⚠️ 本当に既存のデータを上書き置き換えしますか？現在のデータは失われます。")) {
+              return;
+            }
+            appDB = parsed;
+            alert(`✅ ${count}件 の物件データで正常に復元しました！`);
+          }
+
+          migrateChecksToNewStatus();
+          saveDB();
+          renderPropertyList();
+          switchStep(0);
+
+        } catch (err) {
+          alert("インポート失敗: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ========================================================
+    // 3. 初期化 & 画面遷移
+    // ========================================================
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadDB();
+      setupEventListeners();
+      
+      // 最初は物件一覧（STEP 0）を表示
+      renderPropertyList();
+      switchStep(0);
+      lucide.createIcons();
+    });
+
+    function switchStep(stepNumber) {
+      document.getElementById("step0-section").classList.toggle("hidden", stepNumber !== 0);
+      document.getElementById("step1-section").classList.toggle("hidden", stepNumber !== 1);
+      document.getElementById("step2-section").classList.toggle("hidden", stepNumber !== 2);
+      document.getElementById("step3-section").classList.toggle("hidden", stepNumber !== 3);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      lucide.createIcons();
+    }
+
+    function setupEventListeners() {
+      // ヘッダータイトル・一覧ボタン
+      document.getElementById("headerTitle").addEventListener("click", () => {
+        renderPropertyList();
+        switchStep(0);
+      });
+      document.getElementById("btnHeaderToList").addEventListener("click", () => {
+        renderPropertyList();
+        switchStep(0);
+      });
+
+      // 新規査定開始ボタン
+      document.getElementById("btnCreateNew").addEventListener("click", () => {
+        const newProp = createDefaultProperty();
+        appDB.properties.unshift(newProp);
+        appDB.activeId = newProp.id;
+        saveDB();
+        initStep1Form();
+        switchStep(1);
+      });
+
+      // STEP 1 の戻る/進む
+      document.getElementById("btnBackToStep0").addEventListener("click", () => {
+        renderPropertyList();
+        switchStep(0);
+      });
+      document.getElementById("btnToStep2").addEventListener("click", () => {
+        renderCheckList();
+        switchStep(2);
+      });
+
+      // STEP 2 の戻る/進む
+      document.getElementById("btnBackToStep1").addEventListener("click", () => {
+        initStep1Form();
+        switchStep(1);
+      });
+      document.getElementById("btnToStep3").addEventListener("click", () => {
+        renderReport();
+        switchStep(3);
+      });
+      document.getElementById("btnToStep3Footer").addEventListener("click", () => {
+        renderReport();
+        switchStep(3);
+      });
+
+      // STEP 3 の戻る/印刷
+      document.getElementById("btnBackToStep2").addEventListener("click", () => {
+        renderCheckList();
+        switchStep(2);
+      });
+      document.getElementById("btnReportToList").addEventListener("click", () => {
+        renderPropertyList();
+        switchStep(0);
+      });
+      document.getElementById("btnPrintReport").addEventListener("click", () => {
+        renderReport();
+        setTimeout(() => {
+          window.print();
+        }, 120);
+      });
+
+      // 査定データバックアップ（JSONエクスポート）
+      const btnExport = document.getElementById("btnExportData");
+      if (btnExport) {
+        btnExport.addEventListener("click", () => {
+          exportDataAsJSON();
+        });
+      }
+
+      // 査定データ復元（JSONインポート）
+      const btnTriggerImport = document.getElementById("btnTriggerImport");
+      const importFileInput = document.getElementById("importFileInput");
+      if (btnTriggerImport && importFileInput) {
+        btnTriggerImport.addEventListener("click", () => {
+          importFileInput.click();
+        });
+        importFileInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            importDataFromJSON(file);
+          }
+          e.target.value = "";
+        });
+      }
+
+      // 種別ボタン選択
+      document.querySelectorAll("#propertyTypeSelector .type-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const prop = getActiveProperty();
+          if (!prop) return;
+          const type = btn.getAttribute("data-type");
+          prop.propertyType = type;
+          prop.updatedAt = new Date().toISOString();
+          setActiveTypeButton(btn);
+          renderBasicInfoForm(); // 種別に応じた入力項目に切り替え
+          saveDB();
+        });
+      });
+
+      // 写真拡大モーダル閉じる
+      document.getElementById("btnCloseModal").addEventListener("click", () => {
+        document.getElementById("photoModal").classList.add("hidden");
+      });
+      document.getElementById("photoModal").addEventListener("click", (e) => {
+        if (e.target.id === "photoModal") {
+          document.getElementById("photoModal").classList.add("hidden");
+        }
+      });
+
+      // APIキー & AIモデル設定モーダルの開閉
+      // 廃止済みモデルが保存されていた場合に自動リセット（Gemini APIアップデート対応）
+      (function migrateDeprecatedModel() {
+        const deprecatedModels = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+        const currentModel = localStorage.getItem("gemini_model_name");
+        if (currentModel && deprecatedModels.includes(currentModel)) {
+          console.warn(`廃止済みモデル "${currentModel}" を "gemini-2.5-flash" にリセットしました。`);
+          localStorage.setItem("gemini_model_name", "gemini-2.5-flash");
+        }
+      })();
+
+      document.getElementById("btnOpenSettings").addEventListener("click", () => {
+        const key = localStorage.getItem("gemini_api_key_v1") || "";
+        document.getElementById("geminiApiKeyInput").value = key;
+
+        const savedModel = localStorage.getItem("gemini_model_name") || "gemini-2.5-flash";
+        const modelSelect = document.getElementById("geminiModelSelect");
+        const customWrapper = document.getElementById("customModelWrapper");
+        const customInput = document.getElementById("geminiCustomModelInput");
+
+        if (modelSelect) {
+          const hasOption = Array.from(modelSelect.options).some(opt => opt.value === savedModel);
+          if (hasOption) {
+            modelSelect.value = savedModel;
+            if (customWrapper) customWrapper.classList.add("hidden");
+          } else {
+            modelSelect.value = "custom";
+            if (customWrapper) {
+              customWrapper.classList.remove("hidden");
+              if (customInput) customInput.value = savedModel;
+            }
+          }
+        }
+        document.getElementById("settingsModal").classList.remove("hidden");
+      });
+
+      const modelSelectEl = document.getElementById("geminiModelSelect");
+      if (modelSelectEl) {
+        modelSelectEl.addEventListener("change", (e) => {
+          const customWrapper = document.getElementById("customModelWrapper");
+          if (customWrapper) {
+            if (e.target.value === "custom") {
+              customWrapper.classList.remove("hidden");
+            } else {
+              customWrapper.classList.add("hidden");
+            }
+          }
+        });
+      }
+
+      document.getElementById("btnCloseSettings").addEventListener("click", () => {
+        document.getElementById("settingsModal").classList.add("hidden");
+      });
+
+      document.getElementById("btnSaveApiKey").addEventListener("click", () => {
+        const key = document.getElementById("geminiApiKeyInput").value.trim();
+        localStorage.setItem("gemini_api_key_v1", key);
+
+        const modelSelect = document.getElementById("geminiModelSelect");
+        let selectedModel = modelSelect ? modelSelect.value : "gemini-2.5-flash";
+        if (selectedModel === "custom") {
+          const customInput = document.getElementById("geminiCustomModelInput");
+          selectedModel = customInput ? customInput.value.trim() : "gemini-2.5-flash";
+        }
+        localStorage.setItem("gemini_model_name", selectedModel || "gemini-2.5-flash");
+
+        document.getElementById("settingsModal").classList.add("hidden");
+        alert("設定（APIキー & AIモデル）を保存しました！");
+      });
+
+      // 登記簿AI読取：土地 / 建物 / 一括 アップロードトリガー
+      function setupUploadTrigger(btnId, inputId, mode) {
+        const btn = document.getElementById(btnId);
+        const input = document.getElementById(inputId);
+        if (!btn || !input) return;
+
+        btn.addEventListener("click", () => {
+          const apiKey = localStorage.getItem("gemini_api_key_v1");
+          if (!apiKey) {
+            alert("登記簿AI読取を行うには、事前にGemini APIキーの設定が必要です。");
+            document.getElementById("settingsModal").classList.remove("hidden");
+            return;
+          }
+          input.click();
+        });
+
+        input.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            executeRegistryAIParser(file, mode);
+          }
+          e.target.value = ""; // リセット
+        });
+      }
+
+      setupUploadTrigger("btnUploadLandRegistry", "registryLandFileInput", "land");
+      setupUploadTrigger("btnUploadBuildingRegistry", "registryBuildingFileInput", "building");
+      setupUploadTrigger("btnUploadAllRegistry", "registryAllFileInput", "all");
+    }
+
+    // ========================================================
+    // AI入力フィールドのハイライト表示（確認補助）
+    // ========================================================
+    function highlightAIFields(fieldKeys) {
+      if (!Array.isArray(fieldKeys) || fieldKeys.length === 0) return;
+
+      fieldKeys.forEach(k => {
+        const el = document.querySelector(`[data-key="${k}"]`);
+        if (el) {
+          el.classList.add("ai-highlighted");
+          // フォーカスまたは変更でハイライト解除
+          const removeHighlight = () => {
+            el.classList.remove("ai-highlighted");
+            el.removeEventListener("focus", removeHighlight);
+            el.removeEventListener("input", removeHighlight);
+          };
+          el.addEventListener("focus", removeHighlight);
+          el.addEventListener("input", removeHighlight);
+        }
+      });
+
+      // 筆（parcels）が更新された場合は筆コンテナもハイライト
+      if (fieldKeys.includes("parcels")) {
+        const pContainer = document.getElementById("parcelsListContainer");
+        if (pContainer) {
+          pContainer.classList.add("ai-highlighted");
+          setTimeout(() => pContainer.classList.remove("ai-highlighted"), 6000);
+        }
+      }
+
+      // 5秒後に自動的にハイライトを解除
+      setTimeout(() => {
+        fieldKeys.forEach(k => {
+          const el = document.querySelector(`[data-key="${k}"]`);
+          if (el) el.classList.remove("ai-highlighted");
+        });
+      }, 5000);
+    }
+
+    // ========================================================
+    // 登記簿AI自動読取（Gemini API連携・PDF/複数ページ/抹消除外対応版）
+    // mode: "land" | "building" | "all"
+    // ========================================================
+    async function executeRegistryAIParser(file, mode = "all") {
+      const apiKey = localStorage.getItem("gemini_api_key_v1");
+      if (!apiKey) {
+        document.getElementById("settingsModal").classList.remove("hidden");
+        return;
+      }
+
+      const overlay = document.getElementById("aiLoadingOverlay");
+      overlay.classList.remove("hidden");
+
+      try {
+        // MIMEタイプの厳密な判定（大文字拡張子 .PDF / type空 / octet-stream に完全対応）
+        let mimeType = file.type || "";
+        // 正規表現で大文字小文字を無視した拡張子チェック（.pdf / .PDF 両対応）
+        if (/\.pdf$/i.test(file.name) || mimeType.includes("pdf") || mimeType === "application/octet-stream") {
+          mimeType = "application/pdf";
+        } else if (/\.png$/i.test(file.name) || mimeType.includes("png")) {
+          mimeType = "image/png";
+        } else {
+          mimeType = "image/jpeg";
+        }
+
+        // ファイルをBase64に変換
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = reader.result;
+            // data:application/pdf;base64, などのプレフィックスを除去
+            const commaIdx = res.indexOf(",");
+            resolve(commaIdx !== -1 ? res.substring(commaIdx + 1) : res);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // モード別の指示プロンプト
+        let modeInstruction = "";
+        if (mode === "land") {
+          modeInstruction = `【解析モード: 土地の登記簿】
+対象は「土地」の全部事項証明書（登記簿謄本）です。
+表題部（土地）、甲区（所有者）、乙区（抵当権等）を精査し、所在地・地番・地目・地積・筆情報（parcels）・所有者名・抵当権情報を正確に抽出してください。
+※家屋番号・構造・延床面積・建築年などの建物項目は抽出不要（空文字）です。`;
+        } else if (mode === "building") {
+          modeInstruction = `【解析モード: 建物の登記簿】
+対象は「建物」の全部事項証明書（登記簿謄本）です。
+表題部（建物）、甲区（所有者）、乙区（抵当権等）を精査し、家屋番号・種類・構造・床面積・建築年・所有者名・抵当権情報を正確に抽出してください。
+※土地の地積や筆情報（parcels）は抽出不要（空文字または空配列）です。`;
+        } else {
+          modeInstruction = `【解析モード: 土地・建物の一括/区分建物】
+対象は土地および建物、または区分所有建物（マンション専有部分・敷地権）の登記簿謄本です。
+表題部・甲区・乙区の全記載事項を漏れなく抽出してください。`;
+        }
+
+        const promptText = `あなたは日本の不動産登記簿謄本（全部事項証明書）を精査するプロフェッショナルです。
+提供された登記簿（PDFまたは画像）を解析し、以下のJSONフォーマットのみを出力してください。
+
+${modeInstruction}
+
+【最重要・厳格な除外指示（抹消事項の完全排除）】
+1. 登記簿内で「下線（アンダーライン）」が引かれている文字・行、または取り消し線が引かれている項目は、すべて法的に抹消・効力喪失された過去の履歴です。絶対に抽出結果に含めないでください。
+2. 甲区（所有権）: 過去の旧所有者（下線あり）は除外し、必ず下線の引かれていない「現行の最新の所有権登記名義人」のみを owner_name に抽出してください。
+3. 乙区（抵当権等）: 抹消登記によって下線が引かれている過去の抵当権は「抹消済み」として除外してください。下線が引かれていない「現在有効な抵当権・根抵当権」のみを対象とし、有効なものが無ければ teito_status を "なし（無担保）" にしてください。
+4. 複数ページ対応: PDFが複数ページにわたる場合、全ページ（表題部・甲区・乙区）をくまなく精査し、最後の甲区・乙区まで確認してください。
+
+【出力JSONフォーマット】
+{
+  "propertyType": "mansion" | "house" | "land" | "building",
+  "name": "建物名やマンション名（号室まで記載があれば記載。無ければ空文字）",
+  "address": "所在地（地名地番。住居表示がわかる場合は記載）",
+  "chiban": "土地地番（土地登記簿の場合。例: 15番8）",
+  "kaoku": "家屋番号（建物登記簿の場合。例: 12番3の302 または 15番8）",
+  "chimoku": "地目（宅地等）または建物の種類（居宅等）",
+  "structure": "建物の構造（例: 鉄筋コンクリート造陸屋根10階建、木造瓦葺2階建など）",
+  "floor_pos": "所在階 / 棟総階数（マンションの場合、例: 3階 / 10階建）",
+  "area_sqm": "マンション専有面積（㎡の数値のみ、例: 68.45）",
+  "balcony_sqm": "バルコニー面積（数値のみ。無ければ空文字）",
+  "land_sqm": "土地地積（合計地積。㎡の数値のみ、例: 125.40）",
+  "building_sqm": "建物延床面積（戸建て・一棟の場合。各階合計の㎡数値のみ、例: 98.50）",
+  "built_year": "新築年月（建築時期。例: 平成18年4月、2006年など）",
+  "parcels": [
+    {
+      "chiban": "地番（例: 15番8）",
+      "chimoku": "地目（例: 宅地、公衆用道路など）",
+      "sqm": "地積（㎡の数値のみ、例: 125.40）",
+      "share": "所有持分（例: 1/1 または 1/5）",
+      "memo": "備考（例: 主たる敷地、私道負担持分など）"
+    }
+  ],
+  "owner_name": "現在有効な所有権登記名義人の氏名（下線なしの最新名義人のみ）",
+  "teito_status": "なし（無担保）" | "あり（要抹消）" | "要確認",
+  "teito_memo": "有効な抵当権がある場合の債権者（金融機関名）や債権最高額・債権額（抹消済みのものは記載しない）"
+}
+
+※解説やマークダウン記号（\`\`\`json等）は一切含めず、純粋なJSONオブジェクトのみを出力してください。`;
+
+        // モデル候補の選定（ユーザー設定モデルを最優先）
+        const savedModelPreference = localStorage.getItem("gemini_model_name") || "gemini-2.5-flash";
+        let candidateModels = [];
+
+        if (savedModelPreference && savedModelPreference !== "auto") {
+          candidateModels.push(savedModelPreference);
+        }
+
+        // フォールバック候補（廃止済みモデルを除外・v1beta対応モデルのみ）
+        const fallbackCandidates = [
+          "gemini-2.5-flash",
+          "gemini-2.0-flash",
+          "gemini-2.0-flash-exp"
+        ];
+        fallbackCandidates.forEach(m => {
+          if (!candidateModels.includes(m)) candidateModels.push(m);
+        });
+
+        let response = null;
+        let lastErrorMsg = "";
+        let usedModelName = "";
+
+        // 利用可能な候補順にAPIを試行
+        for (const modelName of candidateModels) {
+          try {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const res = await fetch(apiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { inline_data: { mime_type: mimeType, data: base64Data } },
+                    { text: promptText }
+                  ]
+                }],
+                generationConfig: {
+                  response_mime_type: "application/json",
+                  temperature: 0.1
+                }
+              })
+            });
+
+            if (res.ok) {
+              response = res;
+              usedModelName = modelName;
+              console.log(`モデル ${modelName} で解析成功`);
+              break;
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              lastErrorMsg = errData.error?.message || `HTTP ${res.status}`;
+              console.warn(`モデル ${modelName} で失敗 (${lastErrorMsg})。次のモデルを試みます...`);
+            }
+          } catch (e) {
+            lastErrorMsg = e.message;
+          }
+        }
+
+        if (!response) {
+          // モデルが見つからない場合は分かりやすい対処法を案内
+          const isModelNotFound = lastErrorMsg.includes("not found") || lastErrorMsg.includes("not supported");
+          const hint = isModelNotFound
+            ? "\n\n【対処法】設定（⚙️）から「使用するGeminiモデル」を「gemini-2.5-flash（推奨）」に変更して再試行してください。"
+            : "";
+          throw new Error(`利用可能なGeminiモデルで解析に失敗しました。\n詳細: ${lastErrorMsg}\n(試行モデル: ${candidateModels.slice(0, 3).join(", ")})${hint}`);
+        }
+
+        const data = await response.json();
+        const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!textResult) throw new Error("AIから有効なテキスト応答が得られませんでした。");
+
+        // JSONパース（前後の空白やマークダウンを除去）
+        const cleanedJsonStr = textResult.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleanedJsonStr);
+
+        // 現在の物件に自動反映
+        const prop = getActiveProperty();
+        if (prop) {
+          const updatedKeys = [];
+
+          // 種別の自動設定（モードがallの場合、または未設定の場合のみ）
+          if (mode === "all" || !prop.propertyType) {
+            if (parsed.propertyType && ["mansion", "house", "land", "building"].includes(parsed.propertyType)) {
+              prop.propertyType = parsed.propertyType;
+            }
+          }
+
+          // 土地モードまたは一括モードの場合、土地・筆情報を反映
+          if (mode === "land" || mode === "all") {
+            if (Array.isArray(parsed.parcels) && parsed.parcels.length > 0) {
+              prop.info.parcels = parsed.parcels.map((p, idx) => ({
+                chiban: String(p.chiban || ""),
+                chimoku: String(p.chimoku || (idx === 0 ? "宅地" : "公衆用道路")),
+                sqm: String(p.sqm || ""),
+                share: String(p.share || "1/1"),
+                memo: String(p.memo || (idx === 0 ? "主たる敷地" : "私道負担持分等"))
+              }));
+              const totalSqm = calculateTotalLandSqm(prop.info.parcels);
+              prop.info.land_sqm = totalSqm > 0 ? String(totalSqm) : "";
+              if (prop.info.parcels[0]?.chiban) prop.info.chiban = prop.info.parcels[0].chiban;
+              if (prop.info.parcels[0]?.chimoku) prop.info.chimoku = prop.info.parcels[0].chimoku;
+              updatedKeys.push("parcels", "land_sqm", "chiban", "chimoku");
+            } else if (parsed.land_sqm || parsed.chiban) {
+              ensureParcels(prop);
+              prop.info.parcels = [{
+                chiban: String(parsed.chiban || ""),
+                chimoku: String(parsed.chimoku || "宅地"),
+                sqm: String(parsed.land_sqm || ""),
+                share: "1/1",
+                memo: "主たる敷地"
+              }];
+              prop.info.land_sqm = String(parsed.land_sqm || "");
+              if (parsed.chiban) prop.info.chiban = String(parsed.chiban);
+              if (parsed.chimoku) prop.info.chimoku = String(parsed.chimoku);
+              updatedKeys.push("parcels", "land_sqm", "chiban", "chimoku");
+            }
+
+            // 土地モード時の基本情報マッピング
+            if (parsed.address && (!prop.info.address || mode === "all")) {
+              prop.info.address = String(parsed.address);
+              updatedKeys.push("address");
+            }
+            if (parsed.owner_name) {
+              prop.info.owner_name = String(parsed.owner_name);
+              updatedKeys.push("owner_name");
+            }
+            if (parsed.teito_status) {
+              prop.info.teito_status = String(parsed.teito_status);
+              updatedKeys.push("teito_status");
+            }
+            if (parsed.teito_memo) {
+              prop.info.teito_memo = String(parsed.teito_memo);
+              updatedKeys.push("teito_memo");
+            }
+          }
+
+          // 建物モードまたは一括モードの場合、建物情報を反映（土地情報は一切破壊しない）
+          if (mode === "building" || mode === "all") {
+            const buildingFields = ["name", "kaoku", "structure", "floor_pos", "area_sqm", "balcony_sqm", "building_sqm", "built_year"];
+            buildingFields.forEach(k => {
+              if (parsed[k] !== undefined && parsed[k] !== null && parsed[k] !== "") {
+                prop.info[k] = String(parsed[k]);
+                updatedKeys.push(k);
+              }
+            });
+
+            if (parsed.address && (!prop.info.address || mode === "building")) {
+              prop.info.address = String(parsed.address);
+              updatedKeys.push("address");
+            }
+            if (parsed.owner_name) {
+              prop.info.owner_name = String(parsed.owner_name);
+              updatedKeys.push("owner_name");
+            }
+            if (parsed.teito_status) {
+              prop.info.teito_status = String(parsed.teito_status);
+              updatedKeys.push("teito_status");
+            }
+            if (parsed.teito_memo) {
+              prop.info.teito_memo = String(parsed.teito_memo);
+              updatedKeys.push("teito_memo");
+            }
+          }
+
+          prop.updatedAt = new Date().toISOString();
+          saveDB();
+
+          // UIを更新
+          initStep1Form();
+          highlightAIFields(updatedKeys);
+
+          const modeLabel = mode === "land" ? "土地の登記簿" : (mode === "building" ? "建物の登記簿" : "登記簿（一括）");
+          const parcelCountMsg = (prop.info.parcels && prop.info.parcels.length > 1 && (mode === "land" || mode === "all")) 
+            ? `\n（土地: ${prop.info.parcels.length}筆を自動検出・地積合算済み）` 
+            : "";
+          alert(`✨ 【${modeLabel}】のAI読取が完了しました！ (使用モデル: ${usedModelName})${parcelCountMsg}\n\n自動入力された項目は薄い黄色でハイライト表示されています。下線（抹消事項）が除外されているか目視でご確認ください。`);
+        }
+
+      } catch (err) {
+        console.error("登記簿AI読取エラー:", err);
+        alert("解析中にエラーが発生しました:\n" + err.message);
+      } finally {
+        overlay.classList.add("hidden");
+      }
+    }
+
+    // ========================================================
+    // 4. 物件一覧画面（STEP 0）の描画
+    // ========================================================
+    function renderPropertyList() {
+      const container = document.getElementById("propertyListContainer");
+      const emptyPlaceholder = document.getElementById("emptyListPlaceholder");
+      const countBadge = document.getElementById("propertyCountBadge");
+
+      container.innerHTML = "";
+      countBadge.innerText = `${appDB.properties.length}件`;
+
+      if (appDB.properties.length === 0) {
+        emptyPlaceholder.classList.remove("hidden");
+        return;
+      }
+      emptyPlaceholder.classList.add("hidden");
+
+      const typeLabels = {
+        mansion: "マンション",
+        house: "一戸建て",
+        land: "土地",
+        building: "一棟アパート"
+      };
+
+      appDB.properties.forEach(prop => {
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-2xl p-4 shadow-sm border border-slate-200 hover:border-slate-300 transition space-y-3";
+
+        // 要確認・要修繕箇所の数を集計（良好は確実に除外）
+        let cautionCount = 0;
+        let checkedCount = 0;
+        for (const [_, val] of Object.entries(prop.checks || {})) {
+          if (val && val.status) {
+            checkedCount++;
+            const norm = normalizeStatus(val.status);
+            if (norm === "注意" || norm === "確認") {
+              cautionCount++;
+            }
+          }
+        }
+
+        const formattedDate = prop.info.date || prop.updatedAt.split("T")[0];
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 text-white">
+                  ${typeLabels[prop.propertyType] || "物件"}
+                </span>
+                ${cautionCount > 0 ? `
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                    <i data-lucide="alert-triangle" class="w-3 h-3 text-amber-600"></i>
+                    <span>要確認・修繕: ${cautionCount}件</span>
+                  </span>
+                ` : ""}
+              </div>
+              <h4 class="text-base font-bold text-slate-900 mt-1.5">${prop.info.name || "（名称未設定）"}</h4>
+              <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
+                <span>${prop.info.address || "所在地未設定"}</span>
+              </p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="text-xs font-bold text-emerald-700">${prop.info.price || "価格未設定"}</div>
+              <div class="text-[10px] text-slate-400 mt-0.5">${formattedDate}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+            <span class="text-slate-500 text-[11px]">
+              進捗: <span class="font-bold text-slate-700">${checkedCount}項目確認済</span>
+            </span>
+            <div class="flex items-center gap-1.5">
+              <button class="btn-open px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition flex items-center gap-1">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                <span>編集</span>
+              </button>
+              <button class="btn-report px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition flex items-center gap-1">
+                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                <span>報告書</span>
+              </button>
+              <button class="btn-delete p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="削除">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `;
+
+        // 編集ボタン
+        card.querySelector(".btn-open").addEventListener("click", () => {
+          appDB.activeId = prop.id;
+          initStep1Form();
+          switchStep(1);
+        });
+
+        // 報告書ボタン
+        card.querySelector(".btn-report").addEventListener("click", () => {
+          appDB.activeId = prop.id;
+          renderReport();
+          switchStep(3);
+        });
+
+        // 削除ボタン
+        card.querySelector(".btn-delete").addEventListener("click", () => {
+          if (confirm(`「${prop.info.name || 'この物件'}」のデータを削除してもよろしいですか？`)) {
+            appDB.properties = appDB.properties.filter(p => p.id !== prop.id);
+            if (appDB.activeId === prop.id) appDB.activeId = null;
+            saveDB();
+            renderPropertyList();
+          }
+        });
+
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // ========================================================
+    // 5. 基本情報画面（STEP 1）の種別連動フォーム定義 & 自動計算
+    // ========================================================
+    // 自動計算ヘルパー
+    function calcTsuboText(sqmVal) {
+      const val = parseFloat(sqmVal);
+      if (isNaN(val) || val <= 0) return "";
+      const tsubo = (val * 0.3025).toFixed(2);
+      return `約 ${tsubo} 坪`;
+    }
+
+    function calcAgeText(yearStr) {
+      if (!yearStr) return "";
+      let year = null;
+      // 数字4桁（西暦）を探す
+      const match = yearStr.match(/\d{4}/);
+      if (match) {
+        year = parseInt(match[0], 10);
+      } else {
+        // 令和/平成/昭和の簡易変換
+        const rMatch = yearStr.match(/令和\s*(\d+)/);
+        const hMatch = yearStr.match(/平成\s*(\d+)/);
+        const sMatch = yearStr.match(/昭和\s*(\d+)/);
+        if (rMatch) year = 2018 + parseInt(rMatch[1], 10);
+        else if (hMatch) year = 1988 + parseInt(hMatch[1], 10);
+        else if (sMatch) year = 1925 + parseInt(sMatch[1], 10);
+      }
+
+      if (!year || year > 2100 || year < 1900) return "";
+      const currentYear = new Date().getFullYear();
+      const age = Math.max(0, currentYear - year);
+      const taishin = year >= 1981 ? "新耐震" : "旧耐震";
+      return `築 ${age} 年 (${taishin})`;
+    }
+
+    function calcYieldText(monthlyRentMan, priceMan) {
+      const rent = parseFloat(monthlyRentMan);
+      const price = parseFloat(priceMan);
+      if (isNaN(rent) || rent <= 0) return "";
+      const annual = (rent * 12).toFixed(1);
+      let yieldText = `想定年収: ${annual}万円`;
+      if (!isNaN(price) && price > 0) {
+        const yieldPercent = ((rent * 12) / price * 100).toFixed(2);
+        yieldText += ` / 表面利回り: ${yieldPercent}%`;
+      }
+      return yieldText;
+    }
+
+    const BASIC_INFO_CONFIGS = {
+      mansion: {
+        badge: "マンション用項目",
+        hasParcels: false,
+        fields: [
+          { key: "name", label: "物件名・号室", placeholder: "例：グランドヒルズ桜ヶ丘 302号室", required: true, full: true },
+          { key: "address", label: "所在地（住所）", placeholder: "例：東京都世田谷区桜ヶ丘1-2-3", full: true },
+          { key: "kaoku", label: "専有部家屋番号", placeholder: "例：12番3の302" },
+          { key: "floor_pos", label: "所在階 / 棟総階数", placeholder: "例：3階 / RC造10階建" },
+          { key: "area_sqm", label: "専有面積 (㎡)", placeholder: "例：68.45", isSqm: true },
+          { key: "balcony_sqm", label: "バルコニー面積 (㎡)", placeholder: "例：10.20", isSqm: true },
+          { key: "built_year", label: "建築時期（年・築年月）", placeholder: "例：2006年 または 平成18年", isYear: true },
+          { key: "kanri_hi", label: "管理費・修繕積立金(月額)", placeholder: "例：管理1.2万 / 修繕1.5万" },
+          { key: "parking", label: "駐車場空き状況・月額", placeholder: "例：空きあり(月額1.8万)" },
+          { key: "usage", label: "現在の使用状況", type: "select", options: ["所有者居住中", "賃貸中（入居中）", "空室", "セカンドハウス", "その他"] }
+        ]
+      },
+      house: {
+        badge: "一戸建て用項目",
+        hasParcels: true,
+        fields: [
+          { key: "name", label: "物件名・邸名", placeholder: "例：桜ヶ丘1丁目 戸建て（山田様邸）", required: true, full: true },
+          { key: "address", label: "所在地（住所）", placeholder: "例：東京都世田谷区桜ヶ丘1-5-8", full: true },
+          { key: "kaoku", label: "建物家屋番号", placeholder: "例：15番8" },
+          { key: "structure", label: "建物構造・階数", placeholder: "例：木造スレート葺2階建" },
+          { key: "building_sqm", label: "建物延床面積 (㎡)", placeholder: "例：98.50", isSqm: true },
+          { key: "built_year", label: "建築時期（年・築年月）", placeholder: "例：2000年 または 平成12年", isYear: true },
+          { key: "road", label: "接道状況・幅員・間口", placeholder: "例：公道 北側幅員4.5mに間口約8m接道", full: true },
+          { key: "usage", label: "現在の使用状況", type: "select", options: ["所有者居住中", "空家", "賃貸中", "相続・遺品整理中", "その他"] }
+        ]
+      },
+      land: {
+        badge: "土地用項目",
+        hasParcels: true,
+        fields: [
+          { key: "name", label: "物件名・売地名称", placeholder: "例：桜ヶ丘2丁目 売土地（田中様所有地）", required: true, full: true },
+          { key: "address", label: "所在地（住所）", placeholder: "例：東京都世田谷区桜ヶ丘2-10-4", full: true },
+          { key: "land_status", label: "土地の現況", type: "select", options: ["更地", "古家あり（解体更地渡し相談）", "駐車場利用中", "資材置場・雑種地", "その他"] },
+          { key: "road", label: "接道状況・幅員・間口・高低差", placeholder: "例：南側幅員6.0m公道に間口11m接道、平坦", full: true },
+          { key: "zoning", label: "用途地域・建ぺい/容積率", placeholder: "例：第1種低層住居専用 50% / 100%" },
+          { key: "infra", label: "引込インフラ（上下水・ガス）", placeholder: "例：上水引込済(13mm) / 下水本管有 / 都市ガス" }
+        ]
+      },
+      building: {
+        badge: "一棟アパート・ビル用項目",
+        hasParcels: true,
+        fields: [
+          { key: "name", label: "建物名称・棟名", placeholder: "例：グリーンハイツ桜ヶ丘（一棟）", required: true, full: true },
+          { key: "address", label: "所在地（住所）", placeholder: "例：東京都世田谷区桜ヶ丘3-1-1", full: true },
+          { key: "kaoku", label: "建物家屋番号", placeholder: "例：31番1" },
+          { key: "structure", label: "建物構造・総階数", placeholder: "例：重量鉄骨造3階建" },
+          { key: "units", label: "総戸数・入居稼働状況", placeholder: "例：全8戸中7戸賃貸中（稼働率87.5%）" },
+          { key: "building_sqm", label: "建物延床面積 (㎡)", placeholder: "例：320.00", isSqm: true },
+          { key: "built_year", label: "建築時期（年・築年月）", placeholder: "例：1998年 または 平成10年", isYear: true },
+          { key: "monthly_rent", label: "想定月額賃料合計 (万円)", placeholder: "例：45 (※年収・利回りを自動計算)", isRent: true },
+          { key: "kanri_status", label: "管理方式", type: "select", options: ["自主管理", "管理委託（一般管理）", "サブリース（一括借上）中", "その他"] }
+        ]
+      }
+    };
+
+    // 土地の筆（parcels）の健全化と初期化
+    function ensureParcels(prop) {
+      if (!prop.info.parcels || !Array.isArray(prop.info.parcels)) {
+        prop.info.parcels = [];
+        if (prop.info.chiban || prop.info.land_sqm || prop.info.chimoku) {
+          prop.info.parcels.push({
+            chiban: prop.info.chiban || "",
+            chimoku: prop.info.chimoku || "宅地",
+            sqm: prop.info.land_sqm || "",
+            share: prop.info.land_share || "1/1",
+            memo: prop.info.land_memo || ""
+          });
+        }
+      }
+      if (prop.info.parcels.length === 0) {
+        prop.info.parcels.push({ chiban: "", chimoku: "宅地", sqm: "", share: "1/1", memo: "" });
+      }
+    }
+
+    // 土地の合計地積を算出
+    function calculateTotalLandSqm(parcels) {
+      if (!parcels || !Array.isArray(parcels)) return 0;
+      let total = 0;
+      parcels.forEach(p => {
+        const val = parseFloat(p.sqm);
+        if (!isNaN(val) && val > 0) total += val;
+      });
+      return Math.round(total * 100) / 100;
+    }
+
+    function initStep1Form() {
+      const prop = getActiveProperty();
+      if (!prop) return;
+
+      document.querySelectorAll("#propertyTypeSelector .type-btn").forEach(btn => {
+        const type = btn.getAttribute("data-type");
+        if (type === prop.propertyType) {
+          setActiveTypeButton(btn);
+        }
+      });
+
+      renderBasicInfoForm();
+    }
+
+    // 種別に応じて基本情報入力フォームを動的に生成
+    function renderBasicInfoForm() {
+      const prop = getActiveProperty();
+      if (!prop) return;
+
+      const type = prop.propertyType || "mansion";
+      const config = BASIC_INFO_CONFIGS[type] || BASIC_INFO_CONFIGS.mansion;
+
+      const badgeEl = document.getElementById("basicInfoTypeBadge");
+      if (badgeEl) badgeEl.innerText = config.badge;
+
+      const container = document.getElementById("dynamicBasicInfoFields");
+      container.innerHTML = "";
+
+      let currentGrid = null;
+
+      config.fields.forEach(f => {
+        if (f.full) {
+          currentGrid = null;
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = `
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              ${f.label} ${f.required ? '<span class="text-red-500">*</span>' : ''}
+            </label>
+            <input type="${f.type || 'text'}" data-key="${f.key}" placeholder="${f.placeholder || ''}" value="${prop.info[f.key] || ''}" class="w-full text-sm px-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          `;
+          container.appendChild(wrapper);
+        } else {
+          if (!currentGrid) {
+            currentGrid = document.createElement("div");
+            currentGrid.className = "grid grid-cols-2 gap-3";
+            container.appendChild(currentGrid);
+          }
+
+          const col = document.createElement("div");
+          if (f.type === "select") {
+            const currentVal = prop.info[f.key] || f.options[0];
+            const optsHtml = f.options.map(opt => `<option value="${opt}" ${opt === currentVal ? 'selected' : ''}>${opt}</option>`).join("");
+            col.innerHTML = `
+              <label class="block text-xs font-semibold text-slate-700 mb-1">${f.label}</label>
+              <select data-key="${f.key}" class="w-full text-sm px-3 py-2.5 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                ${optsHtml}
+              </select>
+            `;
+          } else {
+            // ㎡、建築年、月収の自動計算表示バッジ
+            let calcBadgeHtml = "";
+            if (f.isSqm) {
+              const tsubo = calcTsuboText(prop.info[f.key]);
+              calcBadgeHtml = `<div id="calc_${f.key}" class="text-[11px] font-bold text-emerald-700 mt-1 ${tsubo ? '' : 'hidden'}"><i data-lucide="calculator" class="w-3 h-3 inline mr-0.5"></i><span>${tsubo}</span></div>`;
+            } else if (f.isYear) {
+              const age = calcAgeText(prop.info[f.key]);
+              calcBadgeHtml = `<div id="calc_${f.key}" class="text-[11px] font-bold text-emerald-700 mt-1 ${age ? '' : 'hidden'}"><i data-lucide="calendar" class="w-3 h-3 inline mr-0.5"></i><span>${age}</span></div>`;
+            } else if (f.isRent) {
+              const yieldInfo = calcYieldText(prop.info[f.key], prop.info.price_val);
+              calcBadgeHtml = `<div id="calc_${f.key}" class="text-[11px] font-bold text-emerald-700 mt-1 ${yieldInfo ? '' : 'hidden'}"><i data-lucide="trending-up" class="w-3 h-3 inline mr-0.5"></i><span>${yieldInfo}</span></div>`;
+            }
+
+            col.innerHTML = `
+              <label class="block text-xs font-semibold text-slate-700 mb-1">
+                ${f.label} ${f.required ? '<span class="text-red-500">*</span>' : ''}
+              </label>
+              <input type="${f.type || 'text'}" data-key="${f.key}" placeholder="${f.placeholder || ''}" value="${prop.info[f.key] || ''}" class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              ${calcBadgeHtml}
+            `;
+          }
+          currentGrid.appendChild(col);
+        }
+      });
+
+      // 土地の筆（parcels）セクション（戸建て・土地・一棟アパート用）
+      if (config.hasParcels) {
+        ensureParcels(prop);
+        const totalLandSqm = calculateTotalLandSqm(prop.info.parcels);
+        const totalLandTsubo = (totalLandSqm * 0.3025).toFixed(2);
+
+        const parcelsSection = document.createElement("div");
+        parcelsSection.className = "pt-3 mt-3 border-t border-slate-200 space-y-3";
+
+        let parcelsCardsHtml = prop.info.parcels.map((p, idx) => {
+          const tsubo = calcTsuboText(p.sqm);
+          return `
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5 relative">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                  <span class="bg-indigo-700 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">第${idx + 1}筆</span>
+                  <span class="text-xs font-semibold text-slate-700">${idx === 0 ? "主たる敷地（本則地）" : "私道負担持分・隣接筆等"}</span>
+                </div>
+                ${prop.info.parcels.length > 1 ? `
+                  <button type="button" class="btn-delete-parcel text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-red-50 transition" data-index="${idx}">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>筆を削除</span>
+                  </button>
+                ` : ""}
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">地番</label>
+                  <input type="text" class="parcel-field w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" data-idx="${idx}" data-field="chiban" placeholder="例：15番8" value="${p.chiban || ''}">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">地目</label>
+                  <select class="parcel-field w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" data-idx="${idx}" data-field="chimoku">
+                    ${["宅地", "公衆用道路", "山林", "雑種地", "田", "畑", "原野", "その他"].map(chim => `<option value="${chim}" ${chim === (p.chimoku || '宅地') ? 'selected' : ''}>${chim}</option>`).join("")}
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">地積 (㎡)</label>
+                  <input type="number" step="0.01" class="parcel-field parcel-sqm-input w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" data-idx="${idx}" data-field="sqm" placeholder="例：125.40" value="${p.sqm || ''}">
+                  <div class="parcel-tsubo-badge text-[10px] font-bold text-indigo-700 mt-1 ${tsubo ? '' : 'hidden'}" id="parcel_tsubo_${idx}">
+                    <i data-lucide="calculator" class="w-3 h-3 inline mr-0.5"></i><span>${tsubo}</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">所有持分</label>
+                  <input type="text" class="parcel-field w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" data-idx="${idx}" data-field="share" placeholder="例：1/1 または 1/5" value="${p.share || '1/1'}">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">備考・私道負担等特記</label>
+                <input type="text" class="parcel-field w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" data-idx="${idx}" data-field="memo" placeholder="例：主たる敷地、または 位置指定道路持分(1/5)、ゴミ置場持分など" value="${p.memo || ''}">
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        parcelsSection.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <i data-lucide="layers" class="w-4 h-4 text-indigo-600"></i>
+              <span>対象土地の筆・地積（2筆以上・私道負担対応）</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-medium">※私道持分や合筆前等の複数筆に対応</span>
+          </div>
+
+          <div class="space-y-3" id="parcelsListContainer">
+            ${parcelsCardsHtml}
+          </div>
+
+          <!-- 筆の追加ボタン -->
+          <button type="button" id="btnAddParcelBtn" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 active:scale-[0.99] text-indigo-700 border border-dashed border-indigo-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i>
+            <span>＋ 土地（筆・私道負担持分等）をもう1筆追加する</span>
+          </button>
+
+          <!-- 合計地積のリアルタイム合算サマリーバー -->
+          <div class="bg-gradient-to-r from-indigo-950 to-slate-900 text-white p-3 rounded-xl flex items-center justify-between shadow-sm border border-indigo-800">
+            <div>
+              <span class="text-[10px] text-indigo-200 block font-medium">合計土地地積（全${prop.info.parcels.length}筆の合算）</span>
+              <div class="flex items-baseline gap-2 mt-0.5">
+                <span class="text-base font-black text-amber-300" id="totalLandSqmVal">${totalLandSqm.toFixed(2)} ㎡</span>
+                <span class="text-xs font-bold text-indigo-200" id="totalLandTsuboVal">（約 ${totalLandTsubo} 坪）</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] bg-indigo-800/80 text-amber-300 px-2 py-0.5 rounded font-bold border border-indigo-700">自動合算中</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(parcelsSection);
+
+        // 筆の追加イベント
+        parcelsSection.querySelector("#btnAddParcelBtn")?.addEventListener("click", () => {
+          const isSecondOrMore = prop.info.parcels.length >= 1;
+          prop.info.parcels.push({
+            chiban: "",
+            chimoku: isSecondOrMore ? "公衆用道路" : "宅地",
+            sqm: "",
+            share: isSecondOrMore ? "1/5" : "1/1",
+            memo: isSecondOrMore ? "私道負担持分" : "主たる敷地"
+          });
+          const totalSqm = calculateTotalLandSqm(prop.info.parcels);
+          prop.info.land_sqm = totalSqm > 0 ? String(totalSqm) : "";
+          prop.updatedAt = new Date().toISOString();
+          saveDB();
+          renderBasicInfoForm();
+        });
+
+        // 筆の削除イベント
+        parcelsSection.querySelectorAll(".btn-delete-parcel").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const idx = parseInt(btn.getAttribute("data-index"), 10);
+            if (prop.info.parcels.length > 1) {
+              prop.info.parcels.splice(idx, 1);
+              const totalSqm = calculateTotalLandSqm(prop.info.parcels);
+              prop.info.land_sqm = totalSqm > 0 ? String(totalSqm) : "";
+              prop.updatedAt = new Date().toISOString();
+              saveDB();
+              renderBasicInfoForm();
+            }
+          });
+        });
+
+        // 筆入力のリアルタイム反映 & 合算更新
+        parcelsSection.querySelectorAll(".parcel-field").forEach(input => {
+          input.addEventListener("input", (e) => {
+            const idx = parseInt(e.target.getAttribute("data-idx"), 10);
+            const field = e.target.getAttribute("data-field");
+            if (prop.info.parcels[idx]) {
+              prop.info.parcels[idx][field] = e.target.value;
+            }
+
+            // 地積が変更された場合、坪数バッジと合計バーを即時更新
+            if (field === "sqm") {
+              const tsuboBadge = document.getElementById(`parcel_tsubo_${idx}`);
+              if (tsuboBadge) {
+                const tsubo = calcTsuboText(e.target.value);
+                if (tsubo) {
+                  tsuboBadge.innerHTML = `<i data-lucide="calculator" class="w-3 h-3 inline mr-0.5"></i><span>${tsubo}</span>`;
+                  tsuboBadge.classList.remove("hidden");
+                } else {
+                  tsuboBadge.classList.add("hidden");
+                }
+                lucide.createIcons();
+              }
+
+              const totalSqm = calculateTotalLandSqm(prop.info.parcels);
+              prop.info.land_sqm = totalSqm > 0 ? String(totalSqm) : "";
+              const totalSqmEl = document.getElementById("totalLandSqmVal");
+              const totalTsuboEl = document.getElementById("totalLandTsuboVal");
+              if (totalSqmEl) totalSqmEl.innerText = `${totalSqm.toFixed(2)} ㎡`;
+              if (totalTsuboEl) totalTsuboEl.innerText = `（約 ${(totalSqm * 0.3025).toFixed(2)} 坪）`;
+            }
+
+            // 代表地番・地目を更新
+            if (prop.info.parcels[0]?.chiban) prop.info.chiban = prop.info.parcels[0].chiban;
+            if (prop.info.parcels[0]?.chimoku) prop.info.chimoku = prop.info.parcels[0].chimoku;
+
+            prop.updatedAt = new Date().toISOString();
+            saveDB();
+          });
+        });
+      }
+
+      // 共通セクション：所有者情報 & 抵当権（登記簿乙区）
+      const ownerSection = document.createElement("div");
+      ownerSection.className = "pt-3 mt-3 border-t border-slate-200 space-y-3";
+      
+      const teitoStatus = prop.info.teito_status || "なし（無担保）";
+      
+      ownerSection.innerHTML = `
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+          <i data-lucide="user-check" class="w-4 h-4 text-emerald-600"></i>
+          <span>所有者情報 ＆ 権利関係（登記簿 乙区）</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">所有者名（名義人）</label>
+            <input type="text" data-key="owner_name" placeholder="例：山田 太郎" value="${prop.info.owner_name || ''}" class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">所有者連絡先・続柄</label>
+            <input type="text" data-key="owner_contact" placeholder="例：090-XXXX-XXXX（本人）" value="${prop.info.owner_contact || ''}" class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">抵当権（担保設定）の有無</label>
+          <div class="grid grid-cols-3 gap-2" id="teitoButtonGroup">
+            <button type="button" data-val="なし（無担保）" class="teito-btn py-1.5 px-1 text-xs rounded-lg border-2 font-bold transition text-center ${teitoStatus === 'なし（無担保）' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+              なし（無担保）
+            </button>
+            <button type="button" data-val="あり（要抹消）" class="teito-btn py-1.5 px-1 text-xs rounded-lg border-2 font-bold transition text-center ${teitoStatus === 'あり（要抹消）' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+              あり（要抹消）
+            </button>
+            <button type="button" data-val="要確認" class="teito-btn py-1.5 px-1 text-xs rounded-lg border-2 font-bold transition text-center ${teitoStatus === '要確認' ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+              要確認
+            </button>
+          </div>
+          <div class="mt-2">
+            <input type="text" data-key="teito_memo" placeholder="抵当権特記メモ（例：〇〇銀行 借入残高約1,800万見込み）" value="${prop.info.teito_memo || ''}" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+      `;
+      container.appendChild(ownerSection);
+
+      // 共通セクション：売却希望価格 & 調査日時
+      const priceDateSection = document.createElement("div");
+      priceDateSection.className = "pt-2 border-t border-slate-100 space-y-3";
+      priceDateSection.innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">売却・査定希望価格 (万円)</label>
+            <input type="number" data-key="price_val" placeholder="例：3980" value="${prop.info.price_val || ''}" class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">調査担当者名</label>
+            <input type="text" data-key="inspector" placeholder="担当者氏名" value="${prop.info.inspector || ''}" class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">現地調査日</label>
+          <input type="date" data-key="date" value="${prop.info.date || ''}" class="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+      `;
+      container.appendChild(priceDateSection);
+
+      // 抵当権ボタンのイベント
+      ownerSection.querySelectorAll(".teito-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const val = btn.getAttribute("data-val");
+          prop.info.teito_status = val;
+          prop.updatedAt = new Date().toISOString();
+          saveDB();
+          renderBasicInfoForm();
+        });
+      });
+
+      // 入力値の双方向バインド & リアルタイム自動計算
+      container.querySelectorAll("input, select").forEach(el => {
+        const key = el.getAttribute("data-key");
+        if (!key) return;
+
+        el.addEventListener("input", (e) => {
+          prop.info[key] = e.target.value;
+          prop.updatedAt = new Date().toISOString();
+          saveDB();
+
+          // 面積の坪数自動更新
+          if (key.includes("sqm")) {
+            const badge = document.getElementById(`calc_${key}`);
+            if (badge) {
+              const tsubo = calcTsuboText(e.target.value);
+              if (tsubo) {
+                badge.innerHTML = `<i data-lucide="calculator" class="w-3 h-3 inline mr-0.5"></i><span>${tsubo}</span>`;
+                badge.classList.remove("hidden");
+              } else {
+                badge.classList.add("hidden");
+              }
+              lucide.createIcons();
+            }
+          }
+
+          // 築年数の自動更新
+          if (key === "built_year") {
+            const badge = document.getElementById(`calc_${key}`);
+            if (badge) {
+              const age = calcAgeText(e.target.value);
+              if (age) {
+                badge.innerHTML = `<i data-lucide="calendar" class="w-3 h-3 inline mr-0.5"></i><span>${age}</span>`;
+                badge.classList.remove("hidden");
+              } else {
+                badge.classList.add("hidden");
+              }
+              lucide.createIcons();
+            }
+          }
+
+          // 月収 ＆ 利回りの自動更新
+          if (key === "monthly_rent" || key === "price_val") {
+            const badge = document.getElementById("calc_monthly_rent");
+            if (badge) {
+              const yieldInfo = calcYieldText(prop.info.monthly_rent, prop.info.price_val);
+              if (yieldInfo) {
+                badge.innerHTML = `<i data-lucide="trending-up" class="w-3 h-3 inline mr-0.5"></i><span>${yieldInfo}</span>`;
+                badge.classList.remove("hidden");
+              } else {
+                badge.classList.add("hidden");
+              }
+              lucide.createIcons();
+            }
+          }
+        });
+      });
+
+      lucide.createIcons();
+    }
+
+    function setActiveTypeButton(activeBtn) {
+      document.querySelectorAll("#propertyTypeSelector .type-btn").forEach(btn => {
+        // 非選択状態: 薄いグレー背景・枠線・グレー文字
+        btn.className = "type-btn relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 transition";
+        const icon = btn.querySelector("i");
+        if (icon) {
+          icon.className = "w-7 h-7 mb-1.5 text-slate-400";
+        }
+        const badge = btn.querySelector(".check-badge");
+        if (badge) badge.classList.add("hidden");
+      });
+
+      // 選択状態: 濃紺背景（ダーク）・太い緑枠・白文字・エメラルドアイコン・右上にチェックバッジ
+      activeBtn.className = "type-btn relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 border-emerald-500 bg-slate-900 text-white shadow-lg ring-4 ring-emerald-500/20 transition";
+      const activeIcon = activeBtn.querySelector("i");
+      if (activeIcon) {
+        activeIcon.className = "w-7 h-7 mb-1.5 text-emerald-400";
+      }
+      const activeBadge = activeBtn.querySelector(".check-badge");
+      if (activeBadge) activeBadge.classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    // ========================================================
+    // 6. チェックリスト入力画面（STEP 2）
+    // ========================================================
+    function getCategoriesForCurrentType() {
+      const prop = getActiveProperty();
+      const type = (prop && prop.propertyType) ? prop.propertyType : "mansion";
+      const baseCategories = CHECKLIST_MASTER[type] || CHECKLIST_MASTER.mansion;
+      return [
+        {
+          category: "重要確認・設備特記事項",
+          icon: "alert-circle",
+          items: CHECKLIST_MASTER.special
+        },
+        ...baseCategories
+      ];
+    }
+
+    function renderCheckList() {
+      const prop = getActiveProperty();
+      if (!prop) return;
+
+      const categories = getCategoriesForCurrentType();
+      const tabsContainer = document.getElementById("categoryTabs");
+      const itemsContainer = document.getElementById("checkItemsContainer");
+
+      tabsContainer.innerHTML = "";
+      itemsContainer.innerHTML = "";
+
+      let totalItems = 0;
+      let completedItems = 0;
+
+      categories.forEach((cat, catIdx) => {
+        const tabBtn = document.createElement("button");
+        tabBtn.className = `flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          prop.currentTab === catIdx 
+            ? "bg-slate-900 text-white shadow-sm" 
+            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+        }`;
+        tabBtn.innerHTML = `<i data-lucide="${cat.icon || 'folder'}" class="w-3.5 h-3.5"></i><span>${cat.category}</span>`;
+        tabBtn.addEventListener("click", () => {
+          prop.currentTab = catIdx;
+          saveDB();
+          renderCheckList();
+        });
+        tabsContainer.appendChild(tabBtn);
+
+        cat.items.forEach(item => {
+          totalItems++;
+          if (prop.checks[item.id] && prop.checks[item.id].status) {
+            completedItems++;
+          }
+        });
+      });
+
+      const progressText = document.getElementById("checkProgressText");
+      if (progressText) {
+        progressText.innerHTML = `チェック済: <span class="text-emerald-600 font-bold">${completedItems}</span> / ${totalItems}項目`;
+      }
+
+      const activeCat = categories[prop.currentTab] || categories[0];
+      
+      const catHeader = document.createElement("div");
+      catHeader.className = "flex items-center gap-2 pt-1 pb-2 border-b border-slate-200";
+      catHeader.innerHTML = `
+        <i data-lucide="${activeCat.icon || 'folder'}" class="w-5 h-5 text-emerald-600"></i>
+        <h3 class="text-base font-bold text-slate-800">${activeCat.category}</h3>
+      `;
+      itemsContainer.appendChild(catHeader);
+
+      activeCat.items.forEach(item => {
+        const card = createItemCard(item, prop);
+        itemsContainer.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function createItemCard(item, prop) {
+      const card = document.createElement("div");
+      card.className = "bg-white rounded-xl p-4 shadow-sm border border-slate-200 space-y-3";
+
+      const itemData = prop.checks[item.id] || { status: "", memo: "", photos: [] };
+      const options = item.options || DEFAULT_CHECK_OPTIONS;
+
+      const titleRow = document.createElement("div");
+      titleRow.className = "flex items-start justify-between gap-2";
+      titleRow.innerHTML = `
+        <div>
+          <h4 class="text-sm font-bold text-slate-800">${item.title}</h4>
+          <p class="text-xs text-slate-500 mt-0.5">${item.desc}</p>
+        </div>
+      `;
+      card.appendChild(titleRow);
+
+      // 4段階評価ボタン（良好・確認・注意・該当なし）
+      const btnGroup = document.createElement("div");
+      btnGroup.className = "grid grid-cols-4 gap-1.5 pt-1";
+
+      const currentNorm = normalizeStatus(itemData.status);
+
+      options.forEach(opt => {
+        const optBtn = document.createElement("button");
+        optBtn.type = "button";
+        const optNorm = normalizeStatus(opt);
+        const isSelected = (currentNorm === optNorm) && (currentNorm !== "");
+
+        // 完全なクラス名で厳密マッピング（文字列結合によるTailwindの色抜けを完全防止）
+        let activeClass = "";
+        if (optNorm === "良好") {
+          activeClass = "bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-400/30 font-bold";
+        } else if (optNorm === "確認") {
+          activeClass = "bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-400/30 font-bold";
+        } else if (optNorm === "注意") {
+          activeClass = "bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-400/30 font-bold";
+        } else if (optNorm === "該当なし") {
+          activeClass = "bg-slate-600 text-white border-slate-600 shadow-sm ring-2 ring-slate-400/30 font-bold";
+        }
+
+        const inactiveClass = "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:border-slate-300 font-medium";
+
+        optBtn.className = `py-2 px-1 text-xs sm:text-xs rounded-lg border-2 text-center transition ${
+          isSelected ? activeClass : inactiveClass
+        }`;
+        optBtn.innerText = optNorm;
+
+        optBtn.addEventListener("click", () => {
+          if (!prop.checks[item.id]) prop.checks[item.id] = { status: "", memo: "", photos: [] };
+          prop.checks[item.id].status = optNorm;
+          prop.updatedAt = new Date().toISOString();
+          saveDB();
+          renderCheckList();
+        });
+
+        btnGroup.appendChild(optBtn);
+      });
+      card.appendChild(btnGroup);
+
+      const memoWrapper = document.createElement("div");
+      memoWrapper.className = "pt-1";
+      const memoInput = document.createElement("input");
+      memoInput.type = "text";
+      memoInput.placeholder = item.placeholder || "特記メモ（状況・気になる点などを入力）";
+      memoInput.value = itemData.memo || "";
+      memoInput.className = "w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500";
+      memoInput.addEventListener("input", (e) => {
+        if (!prop.checks[item.id]) prop.checks[item.id] = { status: "", memo: "", photos: [] };
+        prop.checks[item.id].memo = e.target.value;
+        prop.updatedAt = new Date().toISOString();
+        saveDB();
+      });
+      memoWrapper.appendChild(memoInput);
+      card.appendChild(memoWrapper);
+
+      const photoSection = document.createElement("div");
+      photoSection.className = "flex flex-wrap items-center gap-2 pt-1";
+
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.capture = "environment";
+      fileInput.className = "hidden";
+
+      const addPhotoBtn = document.createElement("button");
+      addPhotoBtn.type = "button";
+      addPhotoBtn.className = "text-xs text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg px-2.5 py-1.5 flex items-center gap-1 transition";
+      addPhotoBtn.innerHTML = `<i data-lucide="camera" class="w-3.5 h-3.5 text-slate-500"></i><span>写真を追加</span>`;
+
+      addPhotoBtn.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          compressAndAddImage(file, item.id, prop);
+        }
+      });
+
+      photoSection.appendChild(fileInput);
+      photoSection.appendChild(addPhotoBtn);
+
+      if (itemData.photos && itemData.photos.length > 0) {
+        itemData.photos.forEach((photoUrl, pIdx) => {
+          const thumbWrapper = document.createElement("div");
+          thumbWrapper.className = "relative w-12 h-12 rounded-lg overflow-hidden border border-slate-300 group";
+
+          const img = document.createElement("img");
+          img.src = photoUrl;
+          img.className = "w-full h-full object-cover cursor-pointer";
+          img.addEventListener("click", () => openPhotoModal(photoUrl, `${item.title} 写真 ${pIdx + 1}`));
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 opacity-90 hover:opacity-100";
+          delBtn.innerHTML = `<i data-lucide="x" class="w-3 h-3"></i>`;
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            itemData.photos.splice(pIdx, 1);
+            prop.updatedAt = new Date().toISOString();
+            saveDB();
+            renderCheckList();
+          });
+
+          thumbWrapper.appendChild(img);
+          thumbWrapper.appendChild(delBtn);
+          photoSection.appendChild(thumbWrapper);
+        });
+      }
+
+      card.appendChild(photoSection);
+      return card;
+    }
+
+    // 写真の自動リサイズ・圧縮（長辺1200px以下、JPEG品質0.70でIndexedDBへ安全保存）
+    function compressAndAddImage(file, itemId, prop) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_SIDE = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_SIDE || height > MAX_SIDE) {
+            if (width >= height) {
+              height = Math.round((height * MAX_SIDE) / width);
+              width = MAX_SIDE;
+            } else {
+              width = Math.round((width * MAX_SIDE) / height);
+              height = MAX_SIDE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.70);
+
+          if (!prop.checks[itemId]) prop.checks[itemId] = { status: "", memo: "", photos: [] };
+          if (!prop.checks[itemId].photos) prop.checks[itemId].photos = [];
+          prop.checks[itemId].photos.push(compressedBase64);
+          prop.updatedAt = new Date().toISOString();
+
+          saveDB();
+          renderCheckList();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function openPhotoModal(url, caption) {
+      const modal = document.getElementById("photoModal");
+      const img = document.getElementById("modalImg");
+      const cap = document.getElementById("modalCaption");
+      img.src = url;
+      cap.innerText = caption || "";
+      modal.classList.remove("hidden");
+    }
+
+    // ========================================================
+    // 7. 査定報告書画面（STEP 3）
+    // ========================================================
+    function renderReport() {
+      const prop = getActiveProperty();
+      if (!prop) return;
+
+      const info = prop.info;
+      const typeLabels = {
+        mansion: "マンション（区分）",
+        house: "一戸建て",
+        land: "土地",
+        building: "一棟アパート・ビル"
+      };
+
+      document.getElementById("rep_name").innerText = info.name || "物件名未設定";
+      document.getElementById("rep_type_badge").innerText = typeLabels[prop.propertyType] || "物件";
+      document.getElementById("rep_address").innerText = `所在地: ${info.address || "未入力"}`;
+      document.getElementById("rep_date").innerText = info.date || "-";
+      document.getElementById("rep_inspector").innerText = info.inspector || "-";
+
+      // 登記簿・基本情報サマリーグリッドを種別フィールドに応じて動的描画
+      const summaryGrid = document.getElementById("rep_basic_info_grid");
+      summaryGrid.innerHTML = "";
+
+      const currentConfig = BASIC_INFO_CONFIGS[prop.propertyType] || BASIC_INFO_CONFIGS.mansion;
+      const displayFields = currentConfig.fields.filter(f => !["name", "address"].includes(f.key));
+
+      displayFields.forEach(f => {
+        let rawVal = info[f.key] || "-";
+        let extraText = "";
+
+        // 自動計算の注記付与
+        if (f.isSqm && info[f.key]) {
+          const tsubo = calcTsuboText(info[f.key]);
+          if (tsubo) extraText = ` (${tsubo})`;
+        } else if (f.isYear && info[f.key]) {
+          const age = calcAgeText(info[f.key]);
+          if (age) extraText = ` [${age}]`;
+        } else if (f.isRent && info[f.key]) {
+          const yieldInfo = calcYieldText(info[f.key], info.price_val);
+          if (yieldInfo) extraText = ` [${yieldInfo}]`;
+        }
+
+        const isFull = f.full;
+        const colDiv = document.createElement("div");
+        colDiv.className = isFull ? "col-span-2 sm:col-span-4" : "";
+        colDiv.innerHTML = `
+          <span class="text-slate-400 block text-[10px] font-medium">${f.label}</span>
+          <span class="font-semibold text-slate-800">${rawVal}${extraText}</span>
+        `;
+        summaryGrid.appendChild(colDiv);
+      });
+
+      // 土地の合計地積をグリッドに追加（戸建て・土地・一棟の場合）
+      if (currentConfig.hasParcels) {
+        ensureParcels(prop);
+        const totalLandSqm = calculateTotalLandSqm(prop.info.parcels);
+        const totalLandTsubo = (totalLandSqm * 0.3025).toFixed(2);
+        const landDiv = document.createElement("div");
+        landDiv.className = "col-span-2";
+        landDiv.innerHTML = `
+          <span class="text-slate-400 block text-[10px] font-medium">合計土地地積（全${prop.info.parcels.length}筆）</span>
+          <span class="font-semibold text-slate-800">${totalLandSqm > 0 ? `${totalLandSqm.toFixed(2)} ㎡ (${totalLandTsubo} 坪)` : "-"}</span>
+        `;
+        summaryGrid.appendChild(landDiv);
+      }
+
+      // 所有者情報・抵当権・希望価格をグリッドに追加
+      const ownerDiv = document.createElement("div");
+      ownerDiv.className = "col-span-2";
+      ownerDiv.innerHTML = `
+        <span class="text-slate-400 block text-[10px] font-medium">所有者名（名義人）/ 連絡先</span>
+        <span class="font-semibold text-slate-800">${info.owner_name || "-"} ${info.owner_contact ? `<span class="text-slate-500 font-normal">(${info.owner_contact})</span>` : ""}</span>
+      `;
+      summaryGrid.appendChild(ownerDiv);
+
+      const teitoDiv = document.createElement("div");
+      teitoDiv.className = "col-span-2";
+      const teitoStatus = info.teito_status || "なし（無担保）";
+      let teitoBadgeClass = "bg-emerald-100 text-emerald-800 border-emerald-300";
+      if (teitoStatus.includes("あり")) teitoBadgeClass = "bg-amber-100 text-amber-900 border-amber-300 font-bold";
+      else if (teitoStatus.includes("要確認")) teitoBadgeClass = "bg-sky-100 text-sky-800 border-sky-300";
+
+      teitoDiv.innerHTML = `
+        <span class="text-slate-400 block text-[10px] font-medium">抵当権設定（担保）の現況</span>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <span class="inline-block text-[10px] px-1.5 py-0.2 rounded border ${teitoBadgeClass}">${teitoStatus}</span>
+          ${info.teito_memo ? `<span class="text-[11px] text-slate-600 truncate">${info.teito_memo}</span>` : ""}
+        </div>
+      `;
+      summaryGrid.appendChild(teitoDiv);
+
+      const priceDiv = document.createElement("div");
+      priceDiv.className = "col-span-2 sm:col-span-4 pt-1 border-t border-slate-200 flex justify-between items-center";
+      priceDiv.innerHTML = `
+        <span class="text-slate-500 font-bold text-xs">売却・査定希望価格</span>
+        <span class="font-bold text-emerald-700 text-base">${info.price_val ? `${info.price_val} 万円` : "未定"}</span>
+      `;
+      summaryGrid.appendChild(priceDiv);
+
+      // 対象土地（筆）の内訳明細表の描画
+      const parcelsContainer = document.getElementById("rep_parcels_container");
+      if (parcelsContainer) {
+        if (currentConfig.hasParcels && prop.info.parcels && prop.info.parcels.length > 0) {
+          parcelsContainer.classList.remove("hidden");
+          const totalSqm = calculateTotalLandSqm(prop.info.parcels);
+          const totalTsubo = (totalSqm * 0.3025).toFixed(2);
+
+          let rowsHtml = prop.info.parcels.map((p, pIdx) => {
+            const sqmNum = parseFloat(p.sqm);
+            const tsuboStr = (!isNaN(sqmNum) && sqmNum > 0) ? (sqmNum * 0.3025).toFixed(2) + " 坪" : "-";
+            return `
+              <tr class="${pIdx % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'} border-b border-slate-200">
+                <td class="p-2 border-r border-slate-200 text-center font-bold text-slate-700 bg-slate-50/50">第${pIdx + 1}筆</td>
+                <td class="p-2 border-r border-slate-200 font-semibold text-slate-900">${p.chiban || "-"}</td>
+                <td class="p-2 border-r border-slate-200 text-center text-slate-700">${p.chimoku || "-"}</td>
+                <td class="p-2 border-r border-slate-200 text-right font-semibold text-slate-900">${p.sqm ? `${parseFloat(p.sqm).toFixed(2)} ㎡` : "-"}</td>
+                <td class="p-2 border-r border-slate-200 text-right text-slate-600">${tsuboStr}</td>
+                <td class="p-2 border-r border-slate-200 text-center text-slate-700 font-medium">${p.share || "1/1"}</td>
+                <td class="p-2 text-slate-600">${p.memo || "-"}</td>
+              </tr>
+            `;
+          }).join("");
+
+          parcelsContainer.innerHTML = `
+            <div class="mt-3 pt-3 border-t border-slate-200">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-600"></i>
+                  <span>対象土地（筆）の内訳明細（全${prop.info.parcels.length}筆）</span>
+                </div>
+                <span class="text-[10px] text-slate-500 font-medium">※私道負担持分・複数筆の合算一覧</span>
+              </div>
+              <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <table class="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-100 text-slate-700 text-[11px] border-b border-slate-200">
+                      <th class="p-2 border-r border-slate-200 text-center w-14">筆番号</th>
+                      <th class="p-2 border-r border-slate-200">地番</th>
+                      <th class="p-2 border-r border-slate-200 text-center w-16">地目</th>
+                      <th class="p-2 border-r border-slate-200 text-right">地積 (㎡)</th>
+                      <th class="p-2 border-r border-slate-200 text-right">坪数</th>
+                      <th class="p-2 border-r border-slate-200 text-center w-20">所有持分</th>
+                      <th class="p-2">備考・私道負担等</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rowsHtml}
+                    <tr class="bg-indigo-50/60 font-bold text-slate-900 border-t-2 border-slate-300">
+                      <td colspan="3" class="p-2 border-r border-slate-200 text-center text-indigo-950">全${prop.info.parcels.length}筆 合計地積</td>
+                      <td class="p-2 border-r border-slate-200 text-right text-indigo-900 text-xs font-black">${totalSqm.toFixed(2)} ㎡</td>
+                      <td class="p-2 border-r border-slate-200 text-right text-indigo-900 text-xs font-black">${totalTsubo} 坪</td>
+                      <td colspan="2" class="p-2 text-slate-500 text-[10px] font-normal">※対象各筆の有効面積合算値</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else {
+          parcelsContainer.classList.add("hidden");
+          parcelsContainer.innerHTML = "";
+        }
+      }
+
+      const alertContainer = document.getElementById("rep_alerts_container");
+      alertContainer.innerHTML = "";
+
+      const cautionItems = [];
+      const categories = getCategoriesForCurrentType();
+
+      categories.forEach(cat => {
+        cat.items.forEach(item => {
+          const check = prop.checks[item.id];
+          if (check && check.status) {
+            const norm = normalizeStatus(check.status);
+            const hasMemo = Boolean(check.memo && check.memo.trim().length > 0);
+            const isCaution = (norm === "注意" || norm === "確認");
+            // 「良好」のみの項目（メモなし）は絶対に除外。「注意」「確認」、または特記メモが記入されている項目のみを抽出
+            if (isCaution || (hasMemo && norm !== "該当なし")) {
+              cautionItems.push({ item, check, norm });
+            }
+          } else if (check && check.memo && check.memo.trim().length > 0) {
+            cautionItems.push({ item, check, norm: "メモ" });
+          }
+        });
+      });
+
+      if (cautionItems.length > 0) {
+        const alertBox = document.createElement("div");
+        alertBox.className = "bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-lg space-y-1.5 page-break-inside-avoid";
+        alertBox.innerHTML = `
+          <div class="flex items-center gap-1.5 font-bold text-amber-900 text-xs sm:text-sm">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+            <span>査定上の重要留意事項・要確認・修繕ピックアップ (${cautionItems.length}件)</span>
+          </div>
+        `;
+        const list = document.createElement("ul");
+        list.className = "text-xs text-amber-900 space-y-1.5 pl-2 list-none";
+        cautionItems.forEach(({ item, check, norm }) => {
+          const li = document.createElement("li");
+          const badgeClass = getStatusBadgeClass(norm);
+          li.className = "flex items-start gap-1.5";
+          li.innerHTML = `
+            <span class="inline-block text-[10px] px-1.5 py-0.2 rounded border flex-shrink-0 mt-0.5 ${badgeClass}">${norm}</span>
+            <div>
+              <span class="font-bold text-slate-800">${item.title}</span>
+              ${check.memo ? `<span class="text-slate-600 font-normal ml-1">― ${check.memo}</span>` : ""}
+            </div>
+          `;
+          list.appendChild(li);
+        });
+        alertBox.appendChild(list);
+        alertContainer.appendChild(alertBox);
+      }
+
+      const detailsContainer = document.getElementById("rep_details_container");
+      detailsContainer.innerHTML = "";
+
+      categories.forEach(cat => {
+        const catBox = document.createElement("div");
+        catBox.className = "page-break-inside-avoid space-y-2";
+        catBox.innerHTML = `
+          <h3 class="text-xs font-bold text-slate-800 border-b border-slate-300 pb-1 flex items-center gap-1.5">
+            <i data-lucide="${cat.icon || 'folder'}" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>${cat.category}</span>
+          </h3>
+        `;
+
+        const table = document.createElement("table");
+        table.className = "w-full text-xs border-collapse border border-slate-200";
+        table.innerHTML = `
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+              <th class="py-1.5 px-2 text-left w-1/3">確認項目</th>
+              <th class="py-1.5 px-2 text-center w-28">現況判定</th>
+              <th class="py-1.5 px-2 text-left">特記事項・現場メモ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100"></tbody>
+        `;
+        const tbody = table.querySelector("tbody");
+
+        cat.items.forEach(item => {
+          const check = prop.checks[item.id] || { status: "未確認", memo: "" };
+          const tr = document.createElement("tr");
+
+          const norm = normalizeStatus(check.status);
+          const badgeClass = getStatusBadgeClass(norm);
+
+          tr.innerHTML = `
+            <td class="py-2 px-2 align-top font-semibold text-slate-700">${item.title}</td>
+            <td class="py-2 px-2 align-top text-center">
+              <span class="inline-block text-[11px] px-2 py-0.5 rounded border ${badgeClass}">
+                ${norm}
+              </span>
+            </td>
+            <td class="py-2 px-2 align-top text-slate-600">${check.memo || "-"}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        catBox.appendChild(table);
+        detailsContainer.appendChild(catBox);
+      });
+
+      const photosGrid = document.getElementById("rep_photos_grid");
+      const photosContainer = document.getElementById("rep_photos_container");
+      photosGrid.innerHTML = "";
+
+      let allPhotos = [];
+      categories.forEach(cat => {
+        cat.items.forEach(item => {
+          const check = prop.checks[item.id];
+          if (check && check.photos && check.photos.length > 0) {
+            check.photos.forEach(photoUrl => {
+              allPhotos.push({
+                url: photoUrl,
+                title: item.title,
+                memo: check.memo
+              });
+            });
+          }
+        });
+      });
+
+      if (allPhotos.length > 0) {
+        photosContainer.classList.remove("hidden");
+        allPhotos.forEach(p => {
+          const photoCard = document.createElement("div");
+          photoCard.className = "border border-slate-200 rounded-lg p-1.5 bg-slate-50 page-break-inside-avoid";
+          photoCard.innerHTML = `
+            <img src="${p.url}" alt="${p.title}" class="w-full h-32 object-cover rounded">
+            <div class="mt-1">
+              <div class="text-[11px] font-bold text-slate-800 truncate">${p.title}</div>
+              ${p.memo ? `<div class="text-[10px] text-slate-500 truncate">${p.memo}</div>` : ""}
+            </div>
+          `;
+          photosGrid.appendChild(photoCard);
+        });
+      } else {
+        photosContainer.classList.add("hidden");
+      }
+
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

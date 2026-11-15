@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#grad)"/>
+  <!-- クリップボード -->
+  <rect x="116" y="100" width="280" height="340" rx="24" fill="#ffffff"/>
+  <!-- バインダー金具 -->
+  <rect x="196" y="76" width="120" height="48" rx="12" fill="#059669"/>
+  <!-- 家のシルエット -->
+  <path d="M256 160 L180 220 L180 300 L332 300 L332 220 Z" fill="#e2e8f0"/>
+  <!-- チェックマーク -->
+  <path d="M210 350 L245 385 L320 310" fill="none" stroke="#10b981" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
